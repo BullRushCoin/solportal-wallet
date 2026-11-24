@@ -92,6 +92,38 @@ export const TOKENS: Token[] = [
     priceUsd: 251.3,
     standard: "spl",
   },
+  {
+    symbol: "WIF",
+    name: "dogwifhat",
+    mint: "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",
+    decimals: 6,
+    priceUsd: 0.123,
+    standard: "spl",
+  },
+  {
+    symbol: "POPCAT",
+    name: "POPCAT",
+    mint: "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr",
+    decimals: 9,
+    priceUsd: 0.025,
+    standard: "spl",
+  },
+  {
+    symbol: "DEAD",
+    name: "Dead Coin",
+    mint: "8mQy1s2uSRri9uaibZRpw5F79QTpqevyou5tfBExtLqj",
+    decimals: 6,
+    priceUsd: 0,
+    standard: "spl",
+  },
+  {
+    symbol: "SAMO",
+    name: "Samoyedcoin",
+    mint: "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+    decimals: 9,
+    priceUsd: 0.002,
+    standard: "spl",
+  },
 ];
 
 export const TOKEN_MAP = Object.fromEntries(TOKENS.map((token) => [token.symbol, token])) as Record<
@@ -109,6 +141,10 @@ export const STARTER_HOLDINGS: Record<string, number> = {
   mSOL: 0,
   bSOL: 0,
   INF: 0,
+  WIF: 4.2,
+  POPCAT: 18,
+  DEAD: 1_250_000,
+  SAMO: 0,
 };
 
 export const STARTER_NFTS: Nft[] = [
@@ -117,10 +153,18 @@ export const STARTER_NFTS: Nft[] = [
   { id: "night-7", name: "Harbor Light #7", collection: "Harbor", pattern: "nft-night" },
 ];
 
+export function tokenLookup(symbol: string): Token | null {
+  return TOKEN_MAP[symbol] ?? null;
+}
+
 export function tokenBySymbol(symbol: string): Token {
-  const token = TOKEN_MAP[symbol];
+  const token = tokenLookup(symbol);
   if (!token) throw new Error(`Unknown token ${symbol}`);
   return token;
+}
+
+export function tokenByMint(mint: string): Token | null {
+  return TOKENS.find((token) => token.mint === mint) ?? null;
 }
 
 export function holdingsUsd(holdings: Record<string, number>, prices?: Record<string, number>): number {
