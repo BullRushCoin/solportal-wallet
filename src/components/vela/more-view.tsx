@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ChevronRight } from "lucide-react";
 import { formatAmt, formatUsd } from "@/lib/vela/format";
@@ -8,7 +8,9 @@ import { holdingsUsd, tokenBySymbol } from "@/lib/vela/tokens";
 import { Blueprint } from "@/components/vela/blueprint";
 import { feeWalletAddress } from "@/lib/vela/fee-wallet";
 import { GhostButton, PrimaryButton, SectionLabel } from "@/components/vela/ui";
+import { Collectibles } from "@/components/vela/home";
 import { StakeView } from "@/components/vela/stake-view";
+import type { NftHolding } from "@/lib/vela/helius-parse";
 
 const PARTNERS = ["MoonPay", "Transak", "Stripe"] as const;
 
@@ -21,6 +23,7 @@ export function MoreView() {
   const resetWallet = useVela((state) => state.resetWallet);
 
   if (more === "stake") return <StakeView />;
+  if (more === "collectibles") return <CollectiblesPage />;
   if (more === "buy") return <BuyPage />;
   if (more === "sites") return <SitesPage />;
   if (more === "pro") return <ProPage />;
@@ -29,6 +32,7 @@ export function MoreView() {
 
   const rows: Array<{ id: MoreRoute; title: string; detail: string }> = [
     { id: "stake", title: "Stake", detail: "SOL into JitoSOL, mSOL, or bSOL" },
+    { id: "collectibles", title: "Collectibles", detail: "NFTs for this wallet" },
     { id: "buy", title: "Buy", detail: "Fiat on-ramp affiliate" },
     { id: "sites", title: "Connected sites", detail: "Permissions granted in Explore" },
     { id: "pro", title: "SolPortal Pro", detail: pro ? "Active in this sandbox" : "$9 / month · illustrative" },
@@ -97,6 +101,58 @@ function Stat({ label, value }: { label: string; value: string }) {
     <div className="rounded-control border border-line bg-surface px-2 py-3">
       <p className="font-mono text-xs text-muted">{label}</p>
       <p className="mt-1 text-sm font-semibold tabular-nums">{value}</p>
+    </div>
+  );
+}
+
+function CollectiblesPage() {
+  const nfts = useVela((state) => state.nfts);
+  const watchAddress = useVela((state) => state.watchAddress);
+  const [watched, setWatched] = useState<NftHolding[] | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!watchAddress) {
+      setWatched(null);
+      return;
+    }
+    const controller = new AbortController();
+    setLoading(true);
+    void fetch(`/api/wallet?address=${encodeURIComponent(watchAddress)}`, { signal: controller.signal })
+      .then(async (res) => {
+        const body = (await res.json()) as { nfts?: NftHolding[] };
+        if (!res.ok) throw new Error("failed");
+        return body.nfts ?? [];
+      })
+      .then((items) => {
+        if (!controller.signal.aborted) setWatched(items);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setWatched([]);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [watchAddress]);
+
+  const items = watchAddress
+    ? (watched ?? []).map((nft) => ({ ...nft, pattern: undefined }))
+    : nfts.map((nft) => ({
+        id: nft.id,
+        name: nft.name,
+        collection: nft.collection,
+        image: nft.image ?? null,
+        pattern: nft.pattern,
+      }));
+
+  return (
+    <div className="px-5 pt-5 pb-8">
+      <Back title="Collectibles" />
+      <p className="mb-2 text-sm text-pretty text-muted">
+        Collectibles used to live on Home. They moved here so Home can show the incinerator instead.
+      </p>
+      <Collectibles items={items} empty={loading ? "Loading collectibles…" : "No NFTs in this wallet."} />
     </div>
   );
 }

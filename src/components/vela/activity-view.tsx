@@ -9,6 +9,7 @@ const FILTERS: Array<{ id: "all" | ActivityKind; label: string }> = [
   { id: "dapp", label: "dApps" },
   { id: "buy", label: "Fiat" },
   { id: "stake", label: "Stake" },
+  { id: "incinerate", label: "Burn" },
 ];
 
 export function ActivityView() {
