@@ -194,6 +194,69 @@ describe("store create and approve", () => {
     assert.ok(Math.abs((after.holdings.SOL ?? 0) - (before - 0.0001)) < 1e-9);
   });
 
+  it("opens Swap with a token preselected as the input", () => {
+    useVela.getState().openSwap("WIF");
+    assert.equal(useVela.getState().tab, "swap");
+    assert.equal(useVela.getState().swapPrefill?.input, "WIF");
+    assert.equal(useVela.getState().swapPrefill?.output, "USDC");
+    useVela.getState().openSwap("USDC");
+    assert.equal(useVela.getState().swapPrefill?.output, "SOL");
+  });
+
+  it("applies a simulated incinerator run only in local state", async () => {
+    await useVela.getState().createWallet("imported", PHRASE);
+    assert.ok((useVela.getState().holdings.WIF ?? 0) > 0);
+    const before = useVela.getState().holdings.SOL ?? 0;
+    useVela.getState().approve({
+      kind: "incinerate",
+      origin: "https://solportal.wallet",
+      site: "SolPortal Incinerator",
+      verified: true,
+      title: "Incinerate 2 tokens",
+      items: [
+        {
+          mint: "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",
+          symbol: "WIF",
+          name: "dogwifhat",
+          amount: 4.2,
+          valueUsd: 0.5,
+          image: null,
+          action: "swap",
+          rentSol: 0.00203928,
+          swapSol: 0.01,
+        },
+        {
+          mint: "8mQy1s2uSRri9uaibZRpw5F79QTpqevyou5tfBExtLqj",
+          symbol: "DEAD",
+          name: "Dead Coin",
+          amount: 1_250_000,
+          valueUsd: 0,
+          image: null,
+          action: "burn",
+          rentSol: 0.00203928,
+          swapSol: null,
+        },
+      ],
+      rentSol: 0.00407856,
+      swapSol: 0.01,
+      feeSol: 0.000703928,
+      feeBps: 500,
+      netSol: 0.013374632,
+      feeWallet: "GD5z4HJRrG6MTwrtceeu3W7mtHwZp7vBtQGkCHJrjJ2c",
+      networkFeeSol: 0.00005,
+      effects: [],
+      authorities: [],
+      warnings: [],
+    });
+    const after = useVela.getState();
+    assert.equal(after.holdings.WIF, undefined);
+    assert.equal(after.holdings.DEAD, undefined);
+    assert.ok(Math.abs((after.holdings.SOL ?? 0) - (before + 0.013374632 - 0.00005)) < 1e-9);
+    assert.ok(after.incineratedMints.includes("EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm"));
+    assert.equal(after.activity[0]?.kind, "incinerate");
+    assert.match(after.activity[0]?.detail ?? "", /Simulated/);
+  });
+
   it("opens a typed https URL in the sandbox browser", () => {
     useVela.getState().openExternal("example.com");
     const browser = useVela.getState().browser;
