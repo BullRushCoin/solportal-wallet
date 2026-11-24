@@ -1,6 +1,7 @@
-import { Bookmark, ChevronLeft, Lock, ShieldAlert } from "lucide-react";
+import { Bookmark, ChevronLeft, ExternalLink, Lock, ShieldAlert } from "lucide-react";
 import { dappById, intentForAction, type Dapp } from "@/lib/vela/dapps";
 import { formatAmt, formatUsd } from "@/lib/vela/format";
+import { openSafeHttpUrl } from "@/lib/vela/open-url";
 import { priorityFeeSol, useVela } from "@/lib/vela/store";
 import { tokenBySymbol } from "@/lib/vela/tokens";
 import { GhostButton, PrimaryButton } from "@/components/vela/ui";
@@ -16,6 +17,11 @@ export function BrowserView() {
   const priority = useVela((state) => state.priority);
   const setSheet = useVela((state) => state.setSheet);
   const setTab = useVela((state) => state.setTab);
+  const setToast = useVela((state) => state.setToast);
+
+  function openRealSite(url: string) {
+    if (!openSafeHttpUrl(url)) setToast("Only http and https links can open.");
+  }
 
   if (!browser) return null;
   const dapp = browser.dappId === "external" ? null : dappById(browser.dappId);
@@ -62,15 +68,30 @@ export function BrowserView() {
           <ShieldAlert className="size-8 text-danger" />
           <h2 className="mt-4 text-3xl font-semibold tracking-tight text-balance">Unverified site</h2>
           <p className="mt-3 text-sm leading-relaxed text-pretty text-muted">
-            {dapp?.host ?? browser.url} is not a verified SolPortal listing. In production the page loads in a sandboxed webview. It still cannot see your keys. Every signature stops here first.
+            {dapp?.host ?? browser.url} is not a verified SolPortal listing. You can open the real site in a new tab, or continue into a clearly labeled sandbox preview. The sandbox wallet cannot connect to real sites.
           </p>
+          <RealSiteNote />
           <div className="mt-auto flex flex-col gap-3 pb-6">
-            <PrimaryButton onClick={acceptGate}>Continue anyway</PrimaryButton>
+            <PrimaryButton onClick={() => openRealSite(dapp?.origin ?? browser.url)}>
+              <ExternalLink className="mr-2 size-4" />
+              Open real site in new tab
+            </PrimaryButton>
+            <GhostButton onClick={acceptGate}>Continue to sandbox preview</GhostButton>
             <GhostButton onClick={closeBrowser}>Go back</GhostButton>
           </div>
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto px-5 pt-6 pb-8">
+          <div className="mb-5 rounded-card border border-line bg-surface p-4">
+            <p className="font-mono text-xs tracking-widest text-accent uppercase">Sandbox preview · simulated</p>
+            <RealSiteNote compact />
+            <div className="mt-3">
+              <GhostButton onClick={() => openRealSite(dapp?.origin ?? browser.url)}>
+                <ExternalLink className="mr-2 size-4" />
+                Open real site in new tab
+              </GhostButton>
+            </div>
+          </div>
           {dapp ? <Site dapp={dapp} linked={linked} onAct={() => act(dapp)} /> : <UnknownSite url={browser.url} />}
         </div>
       )}
@@ -92,7 +113,7 @@ function Site({ dapp, linked, onAct }: { dapp: Dapp; linked: boolean; onAct: () 
         </div>
       </div>
       <p className="mt-4 text-xs text-pretty text-muted">
-        Provider injected by the wallet host via postMessage. This preview renders the dApp as a first-party sandbox so the signing sheet can run without loading a third-party origin.
+        This is a sandbox simulation, not the live site. A production wallet would inject a provider here. The sandbox wallet cannot connect to real sites.
       </p>
     </div>
   );
@@ -230,4 +251,12 @@ function actionLabel(dapp: Dapp): string {
   if (dapp.action === "drain") return "Claim bonus";
   if (dapp.action === "open-swap") return "Open SolPortal Swap";
   return "Stake 1 SOL";
+}
+
+function RealSiteNote({ compact = false }: { compact?: boolean }) {
+  return (
+    <p className={`${compact ? "mt-2" : "mt-4"} text-sm leading-relaxed text-pretty text-muted`}>
+      The real site opens in a separate browser tab. This sandbox wallet cannot connect to real sites, and nothing here signs or broadcasts a real transaction.
+    </p>
+  );
 }

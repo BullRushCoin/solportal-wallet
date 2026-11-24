@@ -21,6 +21,7 @@ const TABS: Array<{ id: Tab; label: string; icon: typeof Wallet }> = [
 
 export function VelaApp() {
   const wallet = useVela((state) => state.wallet);
+  const watchAddress = useVela((state) => state.watchAddress);
   const tab = useVela((state) => state.tab);
   const setTab = useVela((state) => state.setTab);
   const toast = useVela((state) => state.toast);
@@ -41,11 +42,11 @@ export function VelaApp() {
     <div className="min-h-dvh bg-bg text-fg lg:flex lg:h-dvh lg:overflow-hidden">
       <section className="relative mx-auto flex h-dvh w-full max-w-lg flex-col border-line lg:mx-0 lg:w-112 lg:max-w-none lg:shrink-0 lg:border-r">
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {wallet ? <WalletBody tab={tab} /> : <Onboarding />}
+          {wallet || watchAddress ? <WalletBody tab={tab} /> : <Onboarding />}
         </div>
-        {wallet && !browser ? <Nav tab={tab} onTab={setTab} /> : null}
+        {(wallet || watchAddress) && !browser ? <Nav tab={tab} onTab={setTab} /> : null}
         <Sheets />
-        {wallet ? <BrowserView /> : null}
+        {wallet || watchAddress ? <BrowserView /> : null}
         {toast ? (
           <div className="pointer-events-none absolute inset-x-4 bottom-24 z-50 rounded-control border border-line bg-surface px-4 py-3 text-sm">
             {toast}

@@ -9,6 +9,11 @@ export function formatUsd(value: number): string {
   });
 }
 
+export function formatChangePct(value: number): string {
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toFixed(2)}%`;
+}
+
 export function formatAmt(value: number, maxDigits = 4): string {
   if (!Number.isFinite(value)) return "—";
   const abs = Math.abs(value);

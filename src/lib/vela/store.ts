@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { addressFromPhrase, fakeSignature, randomAddress } from "@/lib/vela/crypto";
 import { dappById } from "@/lib/vela/dapps";
 import { uid } from "@/lib/vela/format";
+import { safeHttpUrl } from "@/lib/vela/open-url";
 import type { TxIntent } from "@/lib/vela/provider";
 import { STARTER_HOLDINGS, STARTER_NFTS, tokenBySymbol, type Nft } from "@/lib/vela/tokens";
 
@@ -85,6 +86,7 @@ type Ephemeral = {
   browser: BrowserState | null;
   toast: string | null;
   lastSignature: string | null;
+  watchAddress: string | null;
 };
 
 type Actions = {
@@ -108,6 +110,7 @@ type Actions = {
   setPro: (pro: boolean) => void;
   setPriority: (priority: Priority) => void;
   setCustomRpc: (customRpc: string) => void;
+  setWatchAddress: (address: string | null) => void;
 };
 
 const EMPTY_REVENUE: Revenue = { swapFeesUsd: 0, stakeRevUsd: 0, onrampRevUsd: 0 };
@@ -180,6 +183,7 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
       browser: null,
       toast: null,
       lastSignature: null,
+      watchAddress: null,
 
       setHydrated: (hydrated) => set({ hydrated }),
       setTab: (tab) => set({ tab, more: tab === "more" ? get().more : "root" }),
@@ -249,8 +253,13 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
           });
           return;
         }
+        const safe = safeHttpUrl(hostish);
+        if (!safe) {
+          set({ sheet: null, toast: "Only http and https links can open." });
+          return;
+        }
         set({
-          browser: { dappId: "external", url: hostish.startsWith("http") ? hostish : `https://${hostish}`, stage: "gate" },
+          browser: { dappId: "external", url: safe, stage: "gate" },
           sheet: null,
         });
       },
@@ -379,6 +388,7 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
       setPro: (pro) => set({ pro, priority: pro ? "protect" : get().priority === "protect" ? "fast" : get().priority }),
       setPriority: (priority) => set({ priority }),
       setCustomRpc: (customRpc) => set({ customRpc }),
+      setWatchAddress: (watchAddress) => set({ watchAddress, tab: "home" }),
     }),
     {
       name: "vela-sandbox-v1",

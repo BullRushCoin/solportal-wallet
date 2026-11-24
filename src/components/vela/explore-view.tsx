@@ -32,6 +32,9 @@ export function ExploreView() {
           Open link
         </button>
       </div>
+      <p className="mt-2 text-sm leading-relaxed text-pretty text-muted">
+        Tapping a dApp opens a sandbox preview. Use Open site there to visit the real page in a new tab. This sandbox wallet cannot connect to real sites.
+      </p>
       <label className="mt-4 flex h-12 items-center gap-2 rounded-control border border-line bg-surface px-3">
         <Search className="size-4 text-muted" />
         <input

@@ -15,6 +15,7 @@ export type Nft = {
   name: string;
   collection: string;
   pattern: "nft-keel" | "nft-market" | "nft-night";
+  image?: string | null;
 };
 
 export const TOKENS: Token[] = [
@@ -113,9 +114,9 @@ export function tokenBySymbol(symbol: string): Token {
   return token;
 }
 
-export function holdingsUsd(holdings: Record<string, number>): number {
+export function holdingsUsd(holdings: Record<string, number>, prices?: Record<string, number>): number {
   return Object.entries(holdings).reduce((sum, [symbol, amount]) => {
-    const token = TOKEN_MAP[symbol];
-    return sum + (token ? amount * token.priceUsd : 0);
+    const price = prices?.[symbol] ?? TOKEN_MAP[symbol]?.priceUsd ?? 0;
+    return sum + amount * price;
   }, 0);
 }

@@ -10,33 +10,53 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiMarketRouteImport } from './routes/api/market'
+import { Route as ApiWalletRouteImport } from './routes/api/wallet'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMarketRoute = ApiMarketRouteImport.update({
+  id: '/api/market',
+  path: '/api/market',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWalletRoute = ApiWalletRouteImport.update({
+  id: '/api/wallet',
+  path: '/api/wallet',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/market': typeof ApiMarketRoute
+  '/api/wallet': typeof ApiWalletRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/market': typeof ApiMarketRoute
+  '/api/wallet': typeof ApiWalletRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/market': typeof ApiMarketRoute
+  '/api/wallet': typeof ApiWalletRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/api/market' | '/api/wallet'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/api/market' | '/api/wallet'
+  id: '__root__' | '/' | '/api/market' | '/api/wallet'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiMarketRoute: typeof ApiMarketRoute
+  ApiWalletRoute: typeof ApiWalletRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +68,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/market': {
+      id: '/api/market'
+      path: '/api/market'
+      fullPath: '/api/market'
+      preLoaderRoute: typeof ApiMarketRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/wallet': {
+      id: '/api/wallet'
+      path: '/api/wallet'
+      fullPath: '/api/wallet'
+      preLoaderRoute: typeof ApiWalletRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiMarketRoute: ApiMarketRoute,
+  ApiWalletRoute: ApiWalletRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
