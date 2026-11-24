@@ -2,9 +2,11 @@ import { useMemo, useState } from "react";
 import { ArrowDown } from "lucide-react";
 import { PLATFORM_FEE_BPS, quoteDemo } from "@/lib/vela/jupiter";
 import { formatAmt, formatUsd } from "@/lib/vela/format";
+import { withLivePrice } from "@/lib/vela/market";
 import { intentBlocked, type TxIntent } from "@/lib/vela/provider";
 import { priorityFeeSol, useVela } from "@/lib/vela/store";
 import { TOKENS, tokenBySymbol } from "@/lib/vela/tokens";
+import { useMarket } from "@/lib/vela/use-market";
 import { PrimaryButton, SectionLabel, TokenMark } from "@/components/vela/ui";
 
 export function SwapView() {
@@ -16,14 +18,19 @@ export function SwapView() {
   const [output, setOutput] = useState("USDC");
   const [amount, setAmount] = useState("1");
   const [picking, setPicking] = useState<null | "in" | "out">(null);
+  const market = useMarket();
 
   const amountIn = Number(amount);
   const quote = useMemo(() => {
     if (!wallet || !(amountIn > 0)) return null;
-    return quoteDemo(tokenBySymbol(input), tokenBySymbol(output), amountIn, wallet.address, {
-      prioritization: priority,
-    });
-  }, [amountIn, input, output, priority, wallet]);
+    return quoteDemo(
+      withLivePrice(tokenBySymbol(input), market.tokens[input]),
+      withLivePrice(tokenBySymbol(output), market.tokens[output]),
+      amountIn,
+      wallet.address,
+      { prioritization: priority },
+    );
+  }, [amountIn, input, market, output, priority, wallet]);
 
   const balance = holdings[input] ?? 0;
   const blocked = !quote || amountIn > balance + 1e-8;
@@ -113,7 +120,13 @@ export function SwapView() {
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">Swap</h1>
       <p className="mt-2 text-sm text-pretty text-muted">
         Quotes include an {PLATFORM_FEE_BPS} bps platform fee. Jupiter needs that fee on the quote and a fee account on the swap.
+        {market.live ? " Amounts use live USD prices; the swap itself stays in this sandbox and is never broadcast." : " Live prices are unavailable, so quotes use the demo price table."}
       </p>
+      {!wallet ? (
+        <p className="mt-4 rounded-card border border-line bg-surface p-4 text-sm text-pretty text-muted">
+          Create a sandbox wallet to try a simulated swap. Watching a public address is read-only.
+        </p>
+      ) : null}
 
       <div className="relative mt-5">
         <TokenField
@@ -213,10 +226,18 @@ function TokenField({
 }
 
 function Row({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
+  if (mono) {
+    return (
+      <div className="space-y-1">
+        <dt className="text-muted">{k}</dt>
+        <dd className="font-mono text-xs break-all">{v}</dd>
+      </div>
+    );
+  }
   return (
     <div className="flex items-start justify-between gap-4">
       <dt className="text-muted">{k}</dt>
-      <dd className={`w-1/2 text-right break-all ${mono ? "font-mono text-xs" : ""}`}>{v}</dd>
+      <dd className="w-1/2 text-right">{v}</dd>
     </div>
   );
 }

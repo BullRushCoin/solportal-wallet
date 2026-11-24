@@ -1,5 +1,6 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { TOKEN_MAP } from "@/lib/vela/tokens";
+import { useMarket } from "@/lib/vela/use-market";
 
 export function Mark({ className }: { className?: string }) {
   return (
@@ -7,8 +8,19 @@ export function Mark({ className }: { className?: string }) {
   );
 }
 
-export function TokenMark({ symbol }: { symbol: string }) {
+export function TokenMark({ symbol, src }: { symbol: string; src?: string | null }) {
+  const market = useMarket();
+  const image = src ?? market.tokens[symbol]?.image ?? null;
+  const [failed, setFailed] = useState(false);
   const standard = TOKEN_MAP[symbol]?.standard;
+  if (image && !failed) {
+    return (
+      <span className="relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-full border border-line bg-surface-2">
+        <img src={image} alt="" className="size-full object-cover" onError={() => setFailed(true)} />
+        {standard === "token-2022" ? <span className="sr-only">Token-2022</span> : null}
+      </span>
+    );
+  }
   return (
     <span className="grid size-10 shrink-0 place-items-center rounded-full border border-line bg-surface-2 font-mono text-xs text-accent">
       {symbol.slice(0, 1)}
@@ -61,7 +73,18 @@ export function Overlay({
         className="sheet-body overflow-y-auto rounded-t-card border border-line bg-surface px-5 pt-3 pb-6"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-line" />
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <span className="w-14 shrink-0" />
+          <div className="mx-auto h-1 w-10 rounded-full bg-line" />
+          <button
+            type="button"
+            aria-label="Close"
+            className="h-11 shrink-0 px-2 text-sm text-muted"
+            onClick={onClose}
+          >
+            Close
+          </button>
+        </div>
         {children}
       </div>
     </div>
