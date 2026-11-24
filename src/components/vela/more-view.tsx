@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ChevronRight } from "lucide-react";
-import { formatAmt, formatUsd } from "@/lib/vela/format";
+import { formatAmt, formatUsd, shortAddr } from "@/lib/vela/format";
 import { type TxIntent } from "@/lib/vela/provider";
 import { priorityFeeSol, useVela, type MoreRoute, type Priority } from "@/lib/vela/store";
 import { holdingsUsd, tokenBySymbol } from "@/lib/vela/tokens";
@@ -10,6 +10,7 @@ import { feeWalletAddress } from "@/lib/vela/fee-wallet";
 import { GhostButton, PrimaryButton, SectionLabel } from "@/components/vela/ui";
 import { Collectibles } from "@/components/vela/home";
 import { StakeView } from "@/components/vela/stake-view";
+import { WatchAddressForm } from "@/components/vela/watch-address";
 import type { NftHolding } from "@/lib/vela/helius-parse";
 
 const PARTNERS = ["MoonPay", "Transak", "Stripe"] as const;
@@ -21,8 +22,10 @@ export function MoreView() {
   const revenue = useVela((state) => state.revenue);
   const pro = useVela((state) => state.pro);
   const resetWallet = useVela((state) => state.resetWallet);
+  const watchAddress = useVela((state) => state.watchAddress);
 
   if (more === "stake") return <StakeView />;
+  if (more === "watch") return <WatchWalletPage />;
   if (more === "collectibles") return <CollectiblesPage />;
   if (more === "buy") return <BuyPage />;
   if (more === "sites") return <SitesPage />;
@@ -32,6 +35,7 @@ export function MoreView() {
 
   const rows: Array<{ id: MoreRoute; title: string; detail: string }> = [
     { id: "stake", title: "Stake", detail: "SOL into JitoSOL, mSOL, or bSOL" },
+    { id: "watch", title: "Watch a wallet", detail: watchAddress ? `Watching ${shortAddr(watchAddress)}` : "Live holdings for any public address" },
     { id: "collectibles", title: "Collectibles", detail: "NFTs for this wallet" },
     { id: "buy", title: "Buy", detail: "Fiat on-ramp affiliate" },
     { id: "sites", title: "Connected sites", detail: "Permissions granted in Explore" },
@@ -101,6 +105,33 @@ function Stat({ label, value }: { label: string; value: string }) {
     <div className="rounded-control border border-line bg-surface px-2 py-3">
       <p className="font-mono text-xs text-muted">{label}</p>
       <p className="mt-1 text-sm font-semibold tabular-nums">{value}</p>
+    </div>
+  );
+}
+
+function WatchWalletPage() {
+  return (
+    <div className="px-5 pt-5 pb-8">
+      <Back title="Watch a wallet" />
+      <p className="mb-4 text-sm text-pretty text-muted">
+        Paste any public Solana address to see live balances, logos, staking, and dust accounts. This app cannot sign or send from a watched wallet.
+      </p>
+      <WatchAddressForm compact />
+      <div className="mt-5 rounded-card border border-line bg-surface p-4">
+        <p className="font-medium">Fee wallet</p>
+        <p className="mt-1 font-mono text-xs break-all text-muted">{feeWalletAddress()}</p>
+        <p className="mt-2 text-xs text-pretty text-muted">
+          Public fee-collection address. Watch it to see its real balance. This sandbox never sends it fees.
+        </p>
+        <button
+          className="mt-3 text-sm text-accent"
+          onClick={() => {
+            useVela.getState().setWatchAddress(feeWalletAddress());
+          }}
+        >
+          Watch fee wallet
+        </button>
+      </div>
     </div>
   );
 }
