@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 import { Fingerprint, KeyRound, ShieldAlert } from "lucide-react";
-import { WORDLIST, generatePhrase } from "@/lib/vela/crypto";
+import { WORDLIST, generatePhrase, parseSandboxPhrase } from "@/lib/vela/crypto";
 import { useVela, type WalletMode } from "@/lib/vela/store";
 import { GhostButton, Mark, PrimaryButton, SectionLabel } from "@/components/vela/ui";
+import { WatchAddressForm } from "@/components/vela/watch-address";
 
-type Step = "intro" | "phrase" | "verify" | "import" | "passkey";
+type Step = "intro" | "phrase" | "verify" | "import" | "passkey" | "watch";
 
 export function Onboarding() {
   const createWallet = useVela((state) => state.createWallet);
@@ -63,20 +64,12 @@ export function Onboarding() {
   }
 
   function submitImport() {
-    const words = importText.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    if (words.length !== 12) {
-      setError("Enter exactly 12 sandbox words.");
+    const result = parseSandboxPhrase(importText, ack);
+    if (!result.ok) {
+      setError(result.error);
       return;
     }
-    if (words.some((word) => !WORDLIST.includes(word))) {
-      setError("One of those words is not in the sandbox list. Do not type a real phrase.");
-      return;
-    }
-    if (!ack) {
-      setError("Confirm you are not entering a real recovery phrase.");
-      return;
-    }
-    void finish("imported", words);
+    void finish("imported", result.words);
   }
 
   return (
@@ -116,6 +109,9 @@ export function Onboarding() {
             </GhostButton>
             <button className="h-11 text-sm text-muted" onClick={() => setStep("import")}>
               Import a sandbox phrase
+            </button>
+            <button className="h-11 text-sm text-muted" onClick={() => setStep("watch")}>
+              Watch a public address
             </button>
           </div>
         </>
@@ -224,6 +220,20 @@ export function Onboarding() {
             <PrimaryButton disabled={busy} onClick={() => void finish("passkey", null)}>
               Create passkey wallet
             </PrimaryButton>
+            <GhostButton onClick={() => setStep("intro")}>Back</GhostButton>
+          </div>
+        </>
+      ) : null}
+
+      {step === "watch" ? (
+        <>
+          <SectionLabel>Read only</SectionLabel>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-balance">Watch a public address</h1>
+          <p className="mt-3 text-sm leading-relaxed text-pretty text-muted">
+            See live holdings, logos, and NFT images for any Solana address. No keys are created or used, and nothing is signed or broadcast.
+          </p>
+          <WatchAddressForm />
+          <div className="mt-6">
             <GhostButton onClick={() => setStep("intro")}>Back</GhostButton>
           </div>
         </>
