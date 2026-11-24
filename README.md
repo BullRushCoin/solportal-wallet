@@ -21,7 +21,7 @@ npm run dev
 Open [http://localhost:8080](http://localhost:8080).
 
 1. On the first screen, create a wallet or import the 12 sandbox words the app gives you. Do not type a real seed phrase.
-2. Home shows a simulated balance. Swap, Activity, and Explore are the other tabs.
+2. Home shows a simulated balance. Swap, Activity, and Explore are the other tabs. Explore → Trending lists real Solana dapps (ranked with DefiLlama TVL and volume), plus live DEX pairs and perp markets. Tapping a dapp opens the real site in a new tab; tapping a pair prefills the sandbox Swap.
 3. Home has Send, Receive, Swap, and Stake. Tap an asset to open Swap with that token prefilled. The Incinerator card on Home finds dead/dust tokens and empty accounts; a simulated one-click burn or swap-to-SOL reclaims rent. Collectibles, Buy, and Watch a wallet live under More. Watching a public address shows its real holdings, LST, native stake, and dust (read-only); Home then shows a compact banner with Back to sandbox.
 4. Approving a swap or a dApp request only updates the sandbox. The network never sees it.
 

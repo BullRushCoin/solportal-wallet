@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiExploreRouteImport } from './routes/api/explore'
 import { Route as ApiIncineratorRouteImport } from './routes/api/incinerator'
 import { Route as ApiMarketRouteImport } from './routes/api/market'
 import { Route as ApiStakeRouteImport } from './routes/api/stake'
@@ -19,6 +20,11 @@ import { Route as ApiWalletRouteImport } from './routes/api/wallet'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiExploreRoute = ApiExploreRouteImport.update({
+  id: '/api/explore',
+  path: '/api/explore',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiIncineratorRoute = ApiIncineratorRouteImport.update({
@@ -49,6 +55,7 @@ const ApiWalletRoute = ApiWalletRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/explore': typeof ApiExploreRoute
   '/api/incinerator': typeof ApiIncineratorRoute
   '/api/market': typeof ApiMarketRoute
   '/api/stake': typeof ApiStakeRoute
@@ -57,6 +64,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/explore': typeof ApiExploreRoute
   '/api/incinerator': typeof ApiIncineratorRoute
   '/api/market': typeof ApiMarketRoute
   '/api/stake': typeof ApiStakeRoute
@@ -66,6 +74,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/explore': typeof ApiExploreRoute
   '/api/incinerator': typeof ApiIncineratorRoute
   '/api/market': typeof ApiMarketRoute
   '/api/stake': typeof ApiStakeRoute
@@ -76,6 +85,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/api/explore'
     | '/api/incinerator'
     | '/api/market'
     | '/api/stake'
@@ -84,6 +94,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/api/explore'
     | '/api/incinerator'
     | '/api/market'
     | '/api/stake'
@@ -92,6 +103,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/api/explore'
     | '/api/incinerator'
     | '/api/market'
     | '/api/stake'
@@ -101,6 +113,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiExploreRoute: typeof ApiExploreRoute
   ApiIncineratorRoute: typeof ApiIncineratorRoute
   ApiMarketRoute: typeof ApiMarketRoute
   ApiStakeRoute: typeof ApiStakeRoute
@@ -115,6 +128,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/explore': {
+      id: '/api/explore'
+      path: '/api/explore'
+      fullPath: '/api/explore'
+      preLoaderRoute: typeof ApiExploreRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/incinerator': {
@@ -157,6 +177,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiExploreRoute: ApiExploreRoute,
   ApiIncineratorRoute: ApiIncineratorRoute,
   ApiMarketRoute: ApiMarketRoute,
   ApiStakeRoute: ApiStakeRoute,

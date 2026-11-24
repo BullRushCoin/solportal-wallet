@@ -14,6 +14,32 @@ export function formatChangePct(value: number): string {
   return `${sign}${value.toFixed(2)}%`;
 }
 
+/** Compact USD for TVL, volume, and open interest ($1.2B, $270.4M, $80.5K). */
+export function formatCompactUsd(value: number): string {
+  if (!Number.isFinite(value)) return "—";
+  const sign = value < 0 ? "-" : "";
+  const abs = Math.abs(value);
+  if (abs < 1000) return `${sign}${formatUsd(abs)}`;
+  const units: Array<[number, string]> = [
+    [1e12, "T"],
+    [1e9, "B"],
+    [1e6, "M"],
+    [1e3, "K"],
+  ];
+  for (const [unit, suffix] of units) {
+    if (abs >= unit) {
+      const scaled = abs / unit;
+      const digits = scaled >= 100 ? 0 : scaled >= 10 ? 1 : 2;
+      const body = scaled.toLocaleString("en-US", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: digits,
+      });
+      return `${sign}$${body}${suffix}`;
+    }
+  }
+  return `${sign}${formatUsd(abs)}`;
+}
+
 export function formatAmt(value: number, maxDigits = 4): string {
   if (!Number.isFinite(value)) return "—";
   const abs = Math.abs(value);
