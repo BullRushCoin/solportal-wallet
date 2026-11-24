@@ -3,7 +3,9 @@ dist
 .output
 .vercel
 .tanstack
-.grok
+# Keep the shipped auth flag; ignore everything else under .grok/
+.grok/*
+!.grok/app-env.json
 artifacts
 attachments
 screenshots

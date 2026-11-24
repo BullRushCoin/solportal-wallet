@@ -37,7 +37,12 @@ Stop the server with Ctrl+C.
 | `npm test` | Unit tests |
 | `npm run typecheck` | TypeScript check |
 
-No API keys are required. Wallet state stays in the browser (`localStorage`). `DATABASE_URL` is optional and only used by the unused auth scaffold; leave it unset.
+The sandbox UI runs without API keys and keeps wallet state in the browser (`localStorage`). Fixed demo prices are used if live market data cannot be fetched. See [`.env.example`](.env.example) for optional variables:
+
+- `HELIUS_API_KEY` — server-only (never `VITE_`). Enables live USD prices, token logos, 24h change on the sandbox wallet, live sandbox swap quotes, and the read-only "Watch an address" view (paste any public Solana address; no keys, nothing is signed or broadcast). Leave unset to fall back to the hardcoded demo prices.
+- `DATABASE_URL` — optional, only used by the unused auth scaffold. Leave it unset locally.
+- `VITE_AUTH_ENABLED` — shipped as `"false"` in `.grok/app-env.json`. The wallet UI does not require sign-in.
+- `GROK_PREVIEW_CLIENT_SECRET` / `GROK_PREVIEW_CLIENT_ID` — only needed if you turn federated sign-in on in a Grok live preview. Do not commit real secrets. A previous preview client secret was hardcoded in this repo and is still in git history; treat it as exposed and rotate it on the auth broker if it is still valid.
 
 ## What this is not
 
