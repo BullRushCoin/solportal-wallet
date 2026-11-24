@@ -1,12 +1,14 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowDownLeft, ArrowUpRight, Copy, Landmark, Plus } from "lucide-react";
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Copy, Landmark } from "lucide-react";
 import { formatAmt, formatChangePct, formatUsd, shortAddr } from "@/lib/vela/format";
 import type { FungibleHolding, NftHolding, WatchedWallet } from "@/lib/vela/helius-parse";
 import { holdingsChange24h } from "@/lib/vela/market";
 import { useVela } from "@/lib/vela/store";
+import { holdingValueUsd, isDeadCoin } from "@/lib/vela/incinerator";
 import { holdingsUsd, TOKENS } from "@/lib/vela/tokens";
 import { useMarket } from "@/lib/vela/use-market";
 import { SectionLabel, TokenMark, Mark } from "@/components/vela/ui";
+import { IncineratorCard } from "@/components/vela/incinerator-card";
 import { WatchAddressForm } from "@/components/vela/watch-address";
 
 export function HomeView() {
@@ -18,17 +20,23 @@ export function HomeView() {
 function SandboxHome() {
   const wallet = useVela((state) => state.wallet);
   const holdings = useVela((state) => state.holdings);
-  const nfts = useVela((state) => state.nfts);
   const setSheet = useVela((state) => state.setSheet);
-  const setTab = useVela((state) => state.setTab);
   const setMore = useVela((state) => state.setMore);
+  const openSwap = useVela((state) => state.openSwap);
   const setToast = useVela((state) => state.setToast);
   const restoreSandbox = useVela((state) => state.restoreSandbox);
   const market = useMarket();
   const prices = Object.fromEntries(Object.entries(market.tokens).map(([symbol, quote]) => [symbol, quote.priceUsd]));
   const total = holdingsUsd(holdings, prices);
   const change = holdingsChange24h(holdings, market.tokens);
-  const rows = TOKENS.filter((token) => (holdings[token.symbol] ?? 0) > 0.0000001);
+  const rows = TOKENS.filter((token) => {
+    const amount = holdings[token.symbol] ?? 0;
+    if (amount <= 0.0000001) return false;
+    const quote = market.tokens[token.symbol];
+    const price = quote?.priceUsd ?? token.priceUsd;
+    const valueUsd = holdingValueUsd(amount, price);
+    return !isDeadCoin({ symbol: token.symbol, mint: token.mint, amount, valueUsd });
+  });
 
   return (
     <div className="px-5 pt-5 pb-6">
@@ -56,7 +64,7 @@ function SandboxHome() {
       <div className="mt-6 grid grid-cols-4 gap-2">
         <Quick icon={<ArrowUpRight className="size-4" />} label="Send" onClick={() => setSheet({ kind: "send" })} />
         <Quick icon={<ArrowDownLeft className="size-4" />} label="Receive" onClick={() => setSheet({ kind: "receive" })} />
-        <Quick icon={<Plus className="size-4" />} label="Buy" onClick={() => setMore("buy")} />
+        <Quick icon={<ArrowLeftRight className="size-4" />} label="Swap" onClick={() => openSwap()} />
         <Quick icon={<Landmark className="size-4" />} label="Stake" onClick={() => setMore("stake")} />
       </div>
 
@@ -66,7 +74,7 @@ function SandboxHome() {
 
       <div className="mt-8 flex items-end justify-between">
         <SectionLabel>Assets</SectionLabel>
-        <button className="text-xs text-muted" onClick={() => setTab("swap")}>
+        <button className="text-xs text-muted" onClick={() => openSwap()}>
           Swap
         </button>
       </div>
@@ -88,22 +96,14 @@ function SandboxHome() {
                 usd={amount * price}
                 change24hPct={quote?.change24hPct ?? null}
                 token2022={token.standard === "token-2022"}
+                onClick={() => openSwap(token.symbol)}
               />
             );
           })
         )}
       </ul>
 
-      <Collectibles
-        items={nfts.map((nft) => ({
-          id: nft.id,
-          name: nft.name,
-          collection: nft.collection,
-          image: nft.image ?? null,
-          pattern: nft.pattern,
-        }))}
-        empty="No NFTs in the sandbox."
-      />
+      <IncineratorCard holdings={holdings} />
     </div>
   );
 }
@@ -111,6 +111,9 @@ function SandboxHome() {
 function WatchedHome({ address }: { address: string }) {
   const wallet = useVela((state) => state.wallet);
   const setToast = useVela((state) => state.setToast);
+  const setSheet = useVela((state) => state.setSheet);
+  const setMore = useVela((state) => state.setMore);
+  const openSwap = useVela((state) => state.openSwap);
   const [data, setData] = useState<WatchedWallet | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -153,7 +156,8 @@ function WatchedHome({ address }: { address: string }) {
         change24hPct: null,
       }
     : null;
-  const rows: FungibleHolding[] = data ? [...(sol && sol.amount > 0 ? [sol] : []), ...data.tokens] : [];
+  const allRows: FungibleHolding[] = data ? [...(sol && sol.amount > 0 ? [sol] : []), ...data.tokens] : [];
+  const rows = allRows.filter((token) => !isDeadCoin({ symbol: token.symbol, mint: token.mint, amount: token.amount, valueUsd: token.valueUsd }));
 
   return (
     <div className="px-5 pt-5 pb-6">
@@ -184,12 +188,22 @@ function WatchedHome({ address }: { address: string }) {
         {wallet ? " and still use your simulated wallet." : ". Create a sandbox wallet to try simulated swaps."}
       </div>
 
+      <div className="mt-6 grid grid-cols-4 gap-2">
+        <Quick icon={<ArrowUpRight className="size-4" />} label="Send" onClick={() => setSheet({ kind: "send" })} />
+        <Quick icon={<ArrowDownLeft className="size-4" />} label="Receive" onClick={() => setSheet({ kind: "receive" })} />
+        <Quick icon={<ArrowLeftRight className="size-4" />} label="Swap" onClick={() => openSwap()} />
+        <Quick icon={<Landmark className="size-4" />} label="Stake" onClick={() => setMore("stake")} />
+      </div>
+
       <div className="mt-6">
         <WatchAddressForm compact />
       </div>
 
-      <div className="mt-8">
+      <div className="mt-8 flex items-end justify-between">
         <SectionLabel>Assets</SectionLabel>
+        <button className="text-xs text-muted" onClick={() => openSwap()}>
+          Swap
+        </button>
       </div>
       <ul className="mt-3 divide-y divide-line rounded-card border border-line bg-surface">
         {loading ? (
@@ -206,15 +220,26 @@ function WatchedHome({ address }: { address: string }) {
               amount={token.amount}
               usd={token.valueUsd ?? (token.priceUsd !== null ? token.amount * token.priceUsd : null)}
               change24hPct={token.change24hPct}
+              onClick={() =>
+                openSwap({
+                  input: token.symbol,
+                  output: token.symbol === "USDC" ? "SOL" : "USDC",
+                  token: {
+                    symbol: token.symbol,
+                    name: token.name,
+                    mint: token.mint,
+                    decimals: token.decimals,
+                    priceUsd: token.priceUsd,
+                    image: token.image,
+                  },
+                })
+              }
             />
           ))
         )}
       </ul>
 
-      <Collectibles
-        items={(data?.nfts ?? []).map((nft) => ({ ...nft, pattern: undefined }))}
-        empty={loading ? "Loading collectibles…" : "No collectibles found for this address."}
-      />
+      <IncineratorCard address={address} viewOnly />
     </div>
   );
 }
@@ -272,6 +297,7 @@ function AssetRow({
   usd,
   change24hPct,
   token2022,
+  onClick,
 }: {
   symbol: string;
   name: string;
@@ -280,9 +306,11 @@ function AssetRow({
   usd: number | null;
   change24hPct: number | null;
   token2022?: boolean;
+  onClick?: () => void;
 }) {
   return (
-    <li className="flex items-center gap-3 px-3 py-3">
+    <li>
+    <button type="button" onClick={onClick} className="flex w-full items-center gap-3 px-3 py-3 text-left">
       <TokenMark symbol={symbol} src={image} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
@@ -302,11 +330,12 @@ function AssetRow({
           </p>
         ) : null}
       </div>
+    </button>
     </li>
   );
 }
 
-function Collectibles({
+export function Collectibles({
   items,
   empty,
 }: {
