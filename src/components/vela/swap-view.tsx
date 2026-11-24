@@ -213,10 +213,18 @@ function TokenField({
 }
 
 function Row({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
+  if (mono) {
+    return (
+      <div className="space-y-1">
+        <dt className="text-muted">{k}</dt>
+        <dd className="font-mono text-xs break-all">{v}</dd>
+      </div>
+    );
+  }
   return (
     <div className="flex items-start justify-between gap-4">
       <dt className="text-muted">{k}</dt>
-      <dd className={`w-1/2 text-right break-all ${mono ? "font-mono text-xs" : ""}`}>{v}</dd>
+      <dd className="w-1/2 text-right">{v}</dd>
     </div>
   );
 }

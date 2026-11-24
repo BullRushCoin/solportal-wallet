@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Fingerprint, KeyRound, ShieldAlert } from "lucide-react";
-import { WORDLIST, generatePhrase } from "@/lib/vela/crypto";
+import { WORDLIST, generatePhrase, parseSandboxPhrase } from "@/lib/vela/crypto";
 import { useVela, type WalletMode } from "@/lib/vela/store";
 import { GhostButton, Mark, PrimaryButton, SectionLabel } from "@/components/vela/ui";
 
@@ -63,20 +63,12 @@ export function Onboarding() {
   }
 
   function submitImport() {
-    const words = importText.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    if (words.length !== 12) {
-      setError("Enter exactly 12 sandbox words.");
+    const result = parseSandboxPhrase(importText, ack);
+    if (!result.ok) {
+      setError(result.error);
       return;
     }
-    if (words.some((word) => !WORDLIST.includes(word))) {
-      setError("One of those words is not in the sandbox list. Do not type a real phrase.");
-      return;
-    }
-    if (!ack) {
-      setError("Confirm you are not entering a real recovery phrase.");
-      return;
-    }
-    void finish("imported", words);
+    void finish("imported", result.words);
   }
 
   return (

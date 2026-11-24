@@ -61,7 +61,18 @@ export function Overlay({
         className="sheet-body overflow-y-auto rounded-t-card border border-line bg-surface px-5 pt-3 pb-6"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-line" />
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <span className="w-14 shrink-0" />
+          <div className="mx-auto h-1 w-10 rounded-full bg-line" />
+          <button
+            type="button"
+            aria-label="Close"
+            className="h-11 shrink-0 px-2 text-sm text-muted"
+            onClick={onClose}
+          >
+            Close
+          </button>
+        </div>
         {children}
       </div>
     </div>

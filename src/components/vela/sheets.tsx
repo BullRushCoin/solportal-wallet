@@ -230,7 +230,7 @@ function UrlSheet() {
   return (
     <Overlay label="Open link" onClose={() => setSheet(null)}>
       <h2 className="text-xl font-semibold">Open a link</h2>
-      <p className="mt-2 text-sm text-muted">Directory hosts open directly. Anything else, including sol-rewards.gift, stops on a warning.</p>
+      <p className="mt-2 text-sm text-muted">Only http and https links. Directory hosts open the sandbox preview; anything else stops on a warning. You can open the real site in a new tab from there — the sandbox wallet cannot connect to it.</p>
       <input
         value={value}
         onChange={(event) => setValue(event.target.value)}
