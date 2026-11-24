@@ -6,9 +6,9 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   appNameFromHost,
-  createHeadInjector,
+  createHeadInjector as createHeadInjectorFromWorkspace,
   grokXCreatorHeadTags,
-  injectGrokPwaHead,
+  injectGrokPwaHead as injectGrokPwaHeadFromWorkspace,
   isDocumentPath,
   isInstallQuery,
   publicAppHost,
@@ -20,6 +20,22 @@ import {
 import { renderInstallPage } from "./grok-pwa-plugin.mjs";
 
 const TEMPLATE_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+
+/**
+ * Isolate unit tests from this app's site.json / public/og.jpg.
+ * A ctx.cwd passed by the test still wins.
+ */
+function isolatedCwd() {
+  return mkdtempSync(join(tmpdir(), "grok-pwa-cwd-"));
+}
+
+function injectGrokPwaHead(html, ctx = {}) {
+  return injectGrokPwaHeadFromWorkspace(html, { cwd: isolatedCwd(), ...ctx });
+}
+
+function createHeadInjector(ctx = {}) {
+  return createHeadInjectorFromWorkspace({ cwd: isolatedCwd(), ...ctx });
+}
 
 test("injects before </head>", () => {
   const out = injectGrokPwaHead("<html><head><title>x</title></head><body></body></html>");
