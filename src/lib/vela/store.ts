@@ -5,6 +5,7 @@ import { dappById } from "@/lib/vela/dapps";
 import { uid } from "@/lib/vela/format";
 import { safeHttpUrl } from "@/lib/vela/open-url";
 import type { TxIntent } from "@/lib/vela/provider";
+import type { NativeStakePosition } from "@/lib/vela/stake";
 import { STARTER_HOLDINGS, STARTER_NFTS, tokenBySymbol, type Nft } from "@/lib/vela/tokens";
 
 export type WalletMode = "seed" | "passkey" | "imported";
@@ -76,6 +77,7 @@ type Persisted = {
   pro: boolean;
   priority: Priority;
   customRpc: string;
+  nativeStakes: NativeStakePosition[];
 };
 
 type Ephemeral = {
@@ -176,6 +178,7 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
       pro: false,
       priority: "fast",
       customRpc: "https://mainnet.helius-rpc.com/?api-key=YOUR_KEY",
+      nativeStakes: [],
       hydrated: false,
       tab: "home",
       more: "root",
@@ -203,6 +206,7 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
           bookmarks: [],
           recents: [],
           revenue: { ...EMPTY_REVENUE },
+          nativeStakes: [],
           tab: "home",
           more: "root",
           sheet: null,
@@ -220,7 +224,9 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
           bookmarks: [],
           recents: [],
           revenue: { ...EMPTY_REVENUE },
+          nativeStakes: [],
           pro: false,
+          watchAddress: null,
           sheet: null,
           browser: null,
           tab: "home",
@@ -231,6 +237,7 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
         set({
           holdings: { ...STARTER_HOLDINGS },
           nfts: [...STARTER_NFTS],
+          nativeStakes: [],
           toast: "Sandbox balances restored",
         }),
 
@@ -325,17 +332,68 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
             usd: -intent.amount * tokenBySymbol(intent.symbol).priceUsd,
           });
         } else if (intent.kind === "stake") {
-          holdings = applyDeltas(holdings, {
-            SOL: -(intent.amountIn + intent.networkFeeSol),
-            [intent.to]: intent.amountOut,
-          });
+          const action = intent.action ?? "stake";
+          const target = intent.target ?? "lst";
+          let nativeStakes = [...get().nativeStakes];
+          if (action === "unstake" && target === "lst") {
+            holdings = applyDeltas(holdings, {
+              [intent.from]: -intent.amountIn,
+              SOL: intent.amountOut - intent.networkFeeSol,
+            });
+            activity = pushActivity(activity, {
+              kind: "stake",
+              title: `Unstaked ${intent.from} → SOL`,
+              detail: "Simulated liquid unstake · nothing broadcasts",
+              usd: 0,
+            });
+          } else if (action === "unstake" && target === "native") {
+            nativeStakes = intent.positionId
+              ? nativeStakes.filter((item) => item.id !== intent.positionId)
+              : nativeStakes;
+            holdings = applyDeltas(holdings, { SOL: intent.amountOut - intent.networkFeeSol });
+            activity = pushActivity(activity, {
+              kind: "stake",
+              title: "Unstaked native SOL",
+              detail: intent.validatorName
+                ? `Simulated cooldown skipped · ${intent.validatorName}`
+                : "Simulated native unstake · nothing broadcasts",
+              usd: 0,
+            });
+          } else if (target === "native") {
+            holdings = applyDeltas(holdings, { SOL: -(intent.amountIn + intent.networkFeeSol) });
+            nativeStakes = [
+              {
+                id: uid(),
+                vote: intent.vote ?? "unknown",
+                name: intent.validatorName ?? "Validator",
+                image: intent.validatorImage ?? null,
+                amountSol: intent.amountIn,
+                activationEpoch: intent.activationEpoch ?? 0,
+                deactivationEpoch: null,
+              },
+              ...nativeStakes,
+            ];
+            activity = pushActivity(activity, {
+              kind: "stake",
+              title: `Staked ${intent.amountIn} SOL natively`,
+              detail: `Simulated · ${intent.validatorName ?? intent.vote ?? "validator"}`,
+              usd: 0,
+            });
+          } else {
+            holdings = applyDeltas(holdings, {
+              SOL: -(intent.amountIn + intent.networkFeeSol),
+              [intent.to]: intent.amountOut,
+            });
+            activity = pushActivity(activity, {
+              kind: "stake",
+              title: `Staked SOL → ${intent.to}`,
+              detail: "Simulated liquid staking receipt · nothing broadcasts",
+              usd: 0,
+            });
+          }
           revenue = { ...revenue, stakeRevUsd: revenue.stakeRevUsd + intent.revUsd };
-          activity = pushActivity(activity, {
-            kind: "stake",
-            title: `Staked SOL → ${intent.to}`,
-            detail: "Liquid staking receipt",
-            usd: 0,
-          });
+          set({ holdings, nfts, revenue, activity, nativeStakes, sheet: null, lastSignature: signature, toast: "Signed in sandbox" });
+          return;
         } else if (intent.kind === "buy") {
           holdings = applyDeltas(holdings, { [intent.symbol]: intent.amountOut });
           revenue = { ...revenue, onrampRevUsd: revenue.onrampRevUsd + intent.commissionUsd };
@@ -406,6 +464,7 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
         pro: state.pro,
         priority: state.priority,
         customRpc: state.customRpc,
+        nativeStakes: state.nativeStakes,
       }),
     },
   ),

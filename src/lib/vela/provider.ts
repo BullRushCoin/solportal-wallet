@@ -49,11 +49,20 @@ export type TxIntent = IntentBase &
     | { kind: "send"; symbol: string; amount: number; to: string }
     | {
         kind: "stake";
-        from: "SOL";
+        from: string;
         to: string;
         amountIn: number;
         amountOut: number;
         revUsd: number;
+        action?: "stake" | "unstake";
+        target?: "lst" | "native";
+        vote?: string;
+        validatorName?: string;
+        validatorImage?: string | null;
+        activationEpoch?: number;
+        apyPct?: number;
+        positionId?: string;
+        feeWallet?: string;
       }
     | {
         kind: "buy";

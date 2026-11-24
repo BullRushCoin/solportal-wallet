@@ -22,7 +22,7 @@ Open [http://localhost:8080](http://localhost:8080).
 
 1. On the first screen, create a wallet or import the 12 sandbox words the app gives you. Do not type a real seed phrase.
 2. Home shows a simulated balance. Swap, Activity, and Explore are the other tabs.
-3. More covers stake, cash-out, Pro, connected sites, and the flight manual.
+3. More covers stake (live LST APYs, native validators, simulated stake/unstake), cash-out, Pro, connected sites, and the flight manual. Watch a public address to see its real LST and native stake positions.
 4. Approving a swap or a dApp request only updates the sandbox. The network never sees it.
 
 Stop the server with Ctrl+C.
@@ -39,7 +39,8 @@ Stop the server with Ctrl+C.
 
 The sandbox UI runs without API keys and keeps wallet state in the browser (`localStorage`). Fixed demo prices are used if live market data cannot be fetched. See [`.env.example`](.env.example) for optional variables:
 
-- `HELIUS_API_KEY` — server-only (never `VITE_`). Enables live USD prices, token logos, 24h change on the sandbox wallet, live sandbox swap quotes, and the read-only "Watch an address" view (paste any public Solana address; no keys, nothing is signed or broadcast). Leave unset to fall back to the hardcoded demo prices.
+- `HELIUS_API_KEY` — server-only (never `VITE_`). Enables live USD prices, token logos, 24h change, live sandbox swap quotes, staking data (epoch, native stake accounts), and the read-only "Watch an address" view (paste any public Solana address; no keys, nothing is signed or broadcast). Leave unset to fall back to demo prices and fallback APYs.
+- `VITE_FEE_WALLET_ADDRESS` / `FEE_WALLET_ADDRESS` — public fee-collection wallet (not a secret). Defaults to `GD5z4HJRrG6MTwrtceeu3W7mtHwZp7vBtQGkCHJrjJ2c`. Swap quotes show this wallet and its associated token accounts as the Jupiter fee recipient. The sandbox never sends it funds.
 - `DATABASE_URL` — optional, only used by the unused auth scaffold. Leave it unset locally.
 - `VITE_AUTH_ENABLED` — shipped as `"false"` in `.grok/app-env.json`. The wallet UI does not require sign-in.
 - `GROK_PREVIEW_CLIENT_SECRET` / `GROK_PREVIEW_CLIENT_ID` — only needed if you turn federated sign-in on in a Grok live preview. Do not commit real secrets. A previous preview client secret was hardcoded in this repo and is still in git history; treat it as exposed and rotate it on the auth broker if it is still valid.

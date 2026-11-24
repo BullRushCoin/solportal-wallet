@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { feeAccountForToken, feeWalletAddress } from "./fee-wallet.ts";
 import { PLATFORM_FEE_BPS, quoteDemo } from "./jupiter.ts";
 import { tokenBySymbol } from "./tokens.ts";
 
@@ -11,7 +12,8 @@ describe("quoteDemo", () => {
     assert.ok(quote.feeUsd > 0);
     assert.equal(quote.feeMint.symbol, "USDC");
     assert.equal(quote.jupiter.platformFee?.feeBps, PLATFORM_FEE_BPS);
-    assert.equal(quote.feeAccount, "YOUR_USDC_FEE_TOKEN_ACCOUNT");
+    assert.equal(quote.feeAccount, feeAccountForToken(tokenBySymbol("USDC")));
+    assert.notEqual(quote.feeAccount, feeWalletAddress());
     assert.equal(quote.swapBody.userPublicKey, "DemoPubkey");
   });
 

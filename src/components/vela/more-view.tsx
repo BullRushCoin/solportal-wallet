@@ -6,13 +6,9 @@ import { type TxIntent } from "@/lib/vela/provider";
 import { priorityFeeSol, useVela, type MoreRoute, type Priority } from "@/lib/vela/store";
 import { holdingsUsd, tokenBySymbol } from "@/lib/vela/tokens";
 import { Blueprint } from "@/components/vela/blueprint";
+import { feeWalletAddress } from "@/lib/vela/fee-wallet";
 import { GhostButton, PrimaryButton, SectionLabel } from "@/components/vela/ui";
-
-const LSTS = [
-  { symbol: "JitoSOL", apy: 0.078, note: "Jito tips" },
-  { symbol: "mSOL", apy: 0.071, note: "Marinade" },
-  { symbol: "bSOL", apy: 0.074, note: "BlazeStake" },
-];
+import { StakeView } from "@/components/vela/stake-view";
 
 const PARTNERS = ["MoonPay", "Transak", "Stripe"] as const;
 
@@ -24,7 +20,7 @@ export function MoreView() {
   const pro = useVela((state) => state.pro);
   const resetWallet = useVela((state) => state.resetWallet);
 
-  if (more === "stake") return <StakePage />;
+  if (more === "stake") return <StakeView />;
   if (more === "buy") return <BuyPage />;
   if (more === "sites") return <SitesPage />;
   if (more === "pro") return <ProPage />;
@@ -62,6 +58,21 @@ export function MoreView() {
           </li>
         ))}
       </ul>
+      <div className="mt-5 rounded-card border border-line bg-surface p-4">
+        <p className="font-medium">Fee wallet</p>
+        <p className="mt-1 font-mono text-xs break-all text-muted">{feeWalletAddress()}</p>
+        <p className="mt-2 text-xs text-pretty text-muted">
+          Public fee-collection address. Watch it to see its real balance. This sandbox never sends it fees.
+        </p>
+        <button
+          className="mt-3 text-sm text-accent"
+          onClick={() => {
+            useVela.getState().setWatchAddress(feeWalletAddress());
+          }}
+        >
+          Watch fee wallet
+        </button>
+      </div>
       <div className="mt-6">
         <GhostButton onClick={resetWallet}>Erase sandbox wallet</GhostButton>
       </div>
@@ -86,93 +97,6 @@ function Stat({ label, value }: { label: string; value: string }) {
     <div className="rounded-control border border-line bg-surface px-2 py-3">
       <p className="font-mono text-xs text-muted">{label}</p>
       <p className="mt-1 text-sm font-semibold tabular-nums">{value}</p>
-    </div>
-  );
-}
-
-function StakePage() {
-  const holdings = useVela((state) => state.holdings);
-  const priority = useVela((state) => state.priority);
-  const setSheet = useVela((state) => state.setSheet);
-  const [symbol, setSymbol] = useState("JitoSOL");
-  const [amount, setAmount] = useState("1");
-  const lst = LSTS.find((item) => item.symbol === symbol) ?? LSTS[0]!;
-  const amountIn = Number(amount);
-  const sol = tokenBySymbol("SOL");
-  const outToken = tokenBySymbol(lst.symbol);
-  const amountOut = amountIn > 0 ? (amountIn * sol.priceUsd) / outToken.priceUsd : 0;
-  const annual = amountIn * sol.priceUsd * lst.apy;
-  const month = (annual * 0.1) / 12;
-
-  function review() {
-    const intent: TxIntent = {
-      kind: "stake",
-      origin: "https://solportal.wallet",
-      site: "SolPortal Stake",
-      verified: true,
-      title: `Stake ${formatAmt(amountIn)} SOL`,
-      from: "SOL",
-      to: lst.symbol,
-      amountIn,
-      amountOut,
-      revUsd: month,
-      networkFeeSol: priorityFeeSol(priority),
-      effects: [
-        { symbol: "SOL", delta: -amountIn, usd: -amountIn * sol.priceUsd },
-        { symbol: lst.symbol, delta: amountOut, usd: amountOut * outToken.priceUsd },
-      ],
-      authorities: [],
-      warnings: [
-        {
-          level: "info",
-          title: "Partner rebate, illustrative",
-          detail: `10% of rewards on this position is about ${formatUsd(annual * 0.1)} / year. The sandbox books one month (${formatUsd(month)}).`,
-        },
-      ],
-    };
-    setSheet({ kind: "sign", intent });
-  }
-
-  const reason = amountIn > (holdings.SOL ?? 0) ? "Not enough SOL" : amountIn <= 0 ? "Enter an amount" : null;
-
-  return (
-    <div className="px-5 pt-5 pb-8">
-      <Back title="Stake" />
-      <p className="text-sm text-pretty text-muted">
-        One tap into a liquid staking token. You keep a receipt token. SolPortal does not custody the SOL.
-      </p>
-      <div className="mt-4 grid gap-2">
-        {LSTS.map((item) => (
-          <button
-            key={item.symbol}
-            onClick={() => setSymbol(item.symbol)}
-            className={`rounded-card border px-4 py-3 text-left ${symbol === item.symbol ? "border-accent" : "border-line bg-surface"}`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="font-medium">{item.symbol}</span>
-              <span className="text-sm text-accent tabular-nums">{(item.apy * 100).toFixed(1)}% APY</span>
-            </div>
-            <p className="text-xs text-muted">{item.note} · rate is illustrative</p>
-          </button>
-        ))}
-      </div>
-      <label className="mt-4 block rounded-card border border-line bg-surface p-4">
-        <span className="text-xs text-muted">SOL to stake · balance {formatAmt(holdings.SOL ?? 0)}</span>
-        <input
-          inputMode="decimal"
-          value={amount}
-          onChange={(event) => setAmount(event.target.value.replace(/[^0-9.]/g, ""))}
-          className="mt-2 w-full bg-transparent text-3xl font-semibold tabular-nums outline-none"
-        />
-      </label>
-      <p className="mt-3 text-sm text-muted">
-        You receive about {formatAmt(amountOut, 4)} {lst.symbol}. Network fee is separate.
-      </p>
-      <div className="mt-4">
-        <PrimaryButton disabled={Boolean(reason)} onClick={review}>
-          {reason ?? "Review stake"}
-        </PrimaryButton>
-      </div>
     </div>
   );
 }
