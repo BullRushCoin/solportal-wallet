@@ -64,3 +64,22 @@ export function fakeSignature(): string {
   crypto.getRandomValues(bytes);
   return base58Encode(bytes);
 }
+
+export type SandboxPhraseResult =
+  | { ok: true; words: string[] }
+  | { ok: false; error: string };
+
+/** Validate a typed import. Rejects anything that is not 12 words from WORDLIST. */
+export function parseSandboxPhrase(input: string, acknowledged: boolean): SandboxPhraseResult {
+  const words = input.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length !== 12) {
+    return { ok: false, error: "Enter exactly 12 sandbox words." };
+  }
+  if (words.some((word) => !WORDLIST.includes(word))) {
+    return { ok: false, error: "One of those words is not in the sandbox list. Do not type a real phrase." };
+  }
+  if (!acknowledged) {
+    return { ok: false, error: "Confirm you are not entering a real recovery phrase." };
+  }
+  return { ok: true, words };
+}
