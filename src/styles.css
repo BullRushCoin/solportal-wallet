@@ -70,6 +70,11 @@
   );
 }
 
+.nft-night {
+  background: radial-gradient(circle at 30% 30%, var(--color-accent) 0 18%, transparent 19%),
+    radial-gradient(circle at 70% 70%, var(--color-surface-2) 0 28%, var(--color-bg) 29%);
+}
+
 .sheet-body {
   max-height: 88%;
 }
