@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { addressFromPhrase, fakeSignature, randomAddress } from "@/lib/vela/crypto";
 import { dappById } from "@/lib/vela/dapps";
 import { uid } from "@/lib/vela/format";
+import { safeHttpUrl } from "@/lib/vela/open-url";
 import type { TxIntent } from "@/lib/vela/provider";
 import { STARTER_HOLDINGS, STARTER_NFTS, tokenBySymbol, type Nft } from "@/lib/vela/tokens";
 
@@ -249,8 +250,13 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
           });
           return;
         }
+        const safe = safeHttpUrl(hostish);
+        if (!safe) {
+          set({ sheet: null, toast: "Only http and https links can open." });
+          return;
+        }
         set({
-          browser: { dappId: "external", url: hostish.startsWith("http") ? hostish : `https://${hostish}`, stage: "gate" },
+          browser: { dappId: "external", url: safe, stage: "gate" },
           sheet: null,
         });
       },
