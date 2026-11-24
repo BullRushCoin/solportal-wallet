@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-bg: #09090b;
+  --color-surface: #141416;
+  --color-surface-2: #1e1e22;
+  --color-line: #32323a;
+  --color-fg: #f4efe6;
+  --color-muted: #9c968c;
+  --color-accent: #e0b86a;
+  --color-on-accent: #1a1408;
+  --color-danger: #ff6b4a;
+  --color-on-danger: #2a0c06;
+
+  --radius-card: 1.25rem;
+  --radius-control: 0.875rem;
+
+  --spacing-112: 28rem;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  ::selection {
+    background: var(--color-accent);
+    color: var(--color-on-accent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.nft-keel {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--color-accent) 0 8px,
+    var(--color-bg) 8px 16px
+  );
+}
+
+.nft-market {
+  background: repeating-linear-gradient(
+    90deg,
+    var(--color-surface-2) 0 12px,
+    var(--color-line) 12px 14px
+  );
+}
+
+.sheet-body {
+  max-height: 88%;
+}
+
+.nav-safe {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
