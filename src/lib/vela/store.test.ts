@@ -99,6 +99,101 @@ describe("store create and approve", () => {
     assert.match(useVela.getState().toast ?? "", /http/i);
   });
 
+  it("applies a simulated liquid stake and unstake only in local state", async () => {
+    await useVela.getState().createWallet("imported", PHRASE);
+    const before = useVela.getState().holdings.SOL ?? 0;
+    const intent: TxIntent = {
+      kind: "stake",
+      origin: "https://solportal.wallet",
+      site: "SolPortal Stake",
+      verified: true,
+      title: "Stake 1 SOL to JitoSOL",
+      from: "SOL",
+      to: "JitoSOL",
+      amountIn: 1,
+      amountOut: 0.78,
+      revUsd: 0.1,
+      action: "stake",
+      target: "lst",
+      networkFeeSol: 0.00005,
+      effects: [],
+      authorities: [],
+      warnings: [],
+    };
+    useVela.getState().approve(intent);
+    const mid = useVela.getState();
+    assert.ok(Math.abs((mid.holdings.SOL ?? 0) - (before - 1 - 0.00005)) < 1e-9);
+    assert.ok(Math.abs((mid.holdings.JitoSOL ?? 0) - (STARTER_HOLDINGS.JitoSOL + 0.78)) < 1e-9);
+    assert.equal(mid.activity[0]?.kind, "stake");
+    assert.match(mid.activity[0]?.detail ?? "", /Simulated/);
+    useVela.getState().approve({
+      ...intent,
+      action: "unstake",
+      title: "Unstake JitoSOL",
+      from: "JitoSOL",
+      to: "SOL",
+      amountIn: 0.78,
+      amountOut: 1,
+    });
+    const after = useVela.getState();
+    assert.ok(Math.abs((after.holdings.JitoSOL ?? 0) - STARTER_HOLDINGS.JitoSOL) < 1e-9);
+    assert.match(after.activity[0]?.title ?? "", /Unstaked/);
+  });
+
+  it("records a simulated native stake position with epoch status", async () => {
+    await useVela.getState().createWallet("imported", PHRASE);
+    const before = useVela.getState().holdings.SOL ?? 0;
+    useVela.getState().approve({
+      kind: "stake",
+      origin: "https://solportal.wallet",
+      site: "SolPortal Stake",
+      verified: true,
+      title: "Stake 2 SOL natively",
+      from: "SOL",
+      to: "native",
+      amountIn: 2,
+      amountOut: 2,
+      revUsd: 0,
+      action: "stake",
+      target: "native",
+      vote: "Vote111111111111111111111111111111111111111",
+      validatorName: "Test Validator",
+      activationEpoch: 1095,
+      networkFeeSol: 0.00005,
+      effects: [],
+      authorities: [],
+      warnings: [],
+    });
+    const mid = useVela.getState();
+    assert.ok(Math.abs((mid.holdings.SOL ?? 0) - (before - 2 - 0.00005)) < 1e-9);
+    assert.equal(mid.nativeStakes.length, 1);
+    assert.equal(mid.nativeStakes[0]?.name, "Test Validator");
+    const id = mid.nativeStakes[0]?.id;
+    useVela.getState().approve({
+      kind: "stake",
+      origin: "https://solportal.wallet",
+      site: "SolPortal Stake",
+      verified: true,
+      title: "Unstake native",
+      from: "native",
+      to: "SOL",
+      amountIn: 2,
+      amountOut: 2,
+      revUsd: 0,
+      action: "unstake",
+      target: "native",
+      positionId: id,
+      validatorName: "Test Validator",
+      networkFeeSol: 0.00005,
+      effects: [],
+      authorities: [],
+      warnings: [],
+    });
+    const after = useVela.getState();
+    assert.equal(after.nativeStakes.length, 0);
+    assert.ok(Math.abs((after.holdings.SOL ?? 0) - (before - 0.0001)) < 1e-9);
+  });
+
   it("opens a typed https URL in the sandbox browser", () => {
     useVela.getState().openExternal("example.com");
     const browser = useVela.getState().browser;
