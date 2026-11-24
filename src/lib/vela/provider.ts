@@ -81,6 +81,26 @@ export type TxIntent = IntentBase &
       }
     | { kind: "drain" }
     | { kind: "message"; message: string }
+    | {
+        kind: "incinerate";
+        items: Array<{
+          mint: string;
+          symbol: string;
+          name: string;
+          amount: number;
+          valueUsd: number | null;
+          image: string | null;
+          action: "swap" | "burn";
+          rentSol: number;
+          swapSol: number | null;
+        }>;
+        rentSol: number;
+        swapSol: number;
+        feeSol: number;
+        feeBps: number;
+        netSol: number;
+        feeWallet: string;
+      }
   );
 
 export type BridgeRequest = {
@@ -101,6 +121,10 @@ export type BridgeResponse = {
 
 export function intentBlocked(intent: TxIntent, holdings: Record<string, number>): string | null {
   if (intent.kind === "drain" || intent.kind === "buy") return null;
+  if (intent.kind === "incinerate") {
+    if ((holdings.SOL ?? 0) + 1e-8 < intent.networkFeeSol) return "Not enough SOL";
+    return null;
+  }
   const need: Record<string, number> = {};
   for (const effect of intent.effects) {
     if (effect.delta < 0) need[effect.symbol] = (need[effect.symbol] ?? 0) - effect.delta;
