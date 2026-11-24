@@ -1,45 +1,64 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowDown } from "lucide-react";
 import { feeWalletAddress } from "@/lib/vela/fee-wallet";
+import { asSwapToken } from "@/lib/vela/incinerator";
 import { PLATFORM_FEE_BPS, quoteDemo } from "@/lib/vela/jupiter";
 import { formatAmt, formatUsd } from "@/lib/vela/format";
 import { withLivePrice } from "@/lib/vela/market";
 import { intentBlocked, type TxIntent } from "@/lib/vela/provider";
 import { priorityFeeSol, useVela } from "@/lib/vela/store";
-import { TOKENS, tokenBySymbol } from "@/lib/vela/tokens";
+import { TOKENS, tokenLookup } from "@/lib/vela/tokens";
 import { useMarket } from "@/lib/vela/use-market";
 import { PrimaryButton, SectionLabel, TokenMark } from "@/components/vela/ui";
 
 export function SwapView() {
   const holdings = useVela((state) => state.holdings);
   const wallet = useVela((state) => state.wallet);
+  const watchAddress = useVela((state) => state.watchAddress);
   const priority = useVela((state) => state.priority);
   const setSheet = useVela((state) => state.setSheet);
+  const prefill = useVela((state) => state.swapPrefill);
+  const clearSwapPrefill = useVela((state) => state.clearSwapPrefill);
   const [input, setInput] = useState("SOL");
   const [output, setOutput] = useState("USDC");
   const [amount, setAmount] = useState("1");
   const [picking, setPicking] = useState<null | "in" | "out">(null);
+  const [extra, setExtra] = useState<(typeof TOKENS)[number] | null>(null);
   const market = useMarket();
+
+  useEffect(() => {
+    if (!prefill) return;
+    setInput(prefill.input);
+    setOutput(prefill.output);
+    if (prefill.token && !tokenLookup(prefill.token.symbol) && !TOKENS.some((token) => token.mint === prefill.token?.mint)) {
+      setExtra(asSwapToken(prefill.token));
+    }
+    clearSwapPrefill();
+  }, [prefill, clearSwapPrefill]);
 
   const amountIn = Number(amount);
   const quote = useMemo(() => {
     if (!wallet || !(amountIn > 0)) return null;
+    const inputToken = tokenLookup(input) ?? (extra?.symbol === input ? extra : null);
+    const outputToken = tokenLookup(output) ?? (extra?.symbol === output ? extra : null);
+    if (!inputToken || !outputToken) return null;
     return quoteDemo(
-      withLivePrice(tokenBySymbol(input), market.tokens[input]),
-      withLivePrice(tokenBySymbol(output), market.tokens[output]),
+      withLivePrice(inputToken, market.tokens[input]),
+      withLivePrice(outputToken, market.tokens[output]),
       amountIn,
       wallet.address,
       { prioritization: priority },
     );
-  }, [amountIn, input, market, output, priority, wallet]);
+  }, [amountIn, extra, input, market, output, priority, wallet]);
 
   const balance = holdings[input] ?? 0;
-  const blocked = !quote || amountIn > balance + 1e-8;
+  const viewOnly = Boolean(watchAddress);
+  const blocked = viewOnly || !quote || amountIn > balance + 1e-8;
 
   function review() {
     if (!quote || !wallet) return;
-    const inputToken = tokenBySymbol(input);
-    const outputToken = tokenBySymbol(output);
+    const inputToken = tokenLookup(input) ?? (extra?.symbol === input ? extra : asSwapToken({ symbol: input }));
+    const outputToken = tokenLookup(output) ?? (extra?.symbol === output ? extra : asSwapToken({ symbol: output }));
     const intent: TxIntent = {
       kind: "swap",
       origin: "https://solportal.wallet",
@@ -96,7 +115,7 @@ export function SwapView() {
           </button>
         </div>
         <ul className="divide-y divide-line rounded-card border border-line">
-          {TOKENS.map((token) => (
+          {([extra, ...TOKENS].filter((token, index, list) => token && list.findIndex((row) => row && row.symbol === token.symbol) === index) as typeof TOKENS).map((token) => (
             <li key={token.symbol}>
               <button className="flex w-full items-center gap-3 px-3 py-3 text-left" onClick={() => pick(token.symbol)}>
                 <TokenMark symbol={token.symbol} />
@@ -123,9 +142,13 @@ export function SwapView() {
         Quotes include an {PLATFORM_FEE_BPS} bps platform fee. Jupiter needs that fee on the quote and a fee account on the swap.
         {market.live ? " Amounts use live USD prices; the swap itself stays in this sandbox and is never broadcast." : " Live prices are unavailable, so quotes use the demo price table."}
       </p>
-      {!wallet ? (
+      {watchAddress ? (
         <p className="mt-4 rounded-card border border-line bg-surface p-4 text-sm text-pretty text-muted">
-          Create a sandbox wallet to try a simulated swap. Watching a public address is read-only.
+          View only. This pair is prefilled from the watched address. Approvals stay in the sandbox wallet and do not touch the watched account.
+        </p>
+      ) : !wallet ? (
+        <p className="mt-4 rounded-card border border-line bg-surface p-4 text-sm text-pretty text-muted">
+          Create a sandbox wallet to try a simulated swap.
         </p>
       ) : null}
 
@@ -173,7 +196,7 @@ export function SwapView() {
 
       <div className="mt-4">
         <PrimaryButton disabled={blocked} onClick={review}>
-          {amountIn > balance ? "Not enough balance" : "Review swap"}
+          {viewOnly ? "View only" : amountIn > balance ? "Not enough balance" : "Review swap"}
         </PrimaryButton>
       </div>
     </div>

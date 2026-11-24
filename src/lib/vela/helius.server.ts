@@ -72,7 +72,7 @@ export async function heliusRpc(method: string, params: unknown): Promise<unknow
 }
 
 
-async function fetchJupiterPrices(mints: string[]): Promise<JupiterPriceQuote[]> {
+export async function fetchJupiterPrices(mints: string[]): Promise<JupiterPriceQuote[]> {
   const ids = mints.join(",");
   try {
     const v3 = await getJson(`${JUPITER_PRICE_V3}?ids=${encodeURIComponent(ids)}`);

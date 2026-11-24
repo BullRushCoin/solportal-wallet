@@ -45,8 +45,34 @@ function SignSheet({ intent }: { intent: TxIntent }) {
         </div>
       ) : null}
 
+      {intent.kind === "incinerate" ? (
+        <ul className="mt-4 divide-y divide-line rounded-control border border-line">
+          {intent.items.map((item) => (
+            <li key={item.mint} className="flex items-center gap-3 px-3 py-3">
+              <TokenMark symbol={item.symbol} src={item.image} />
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">{item.symbol}</p>
+                <p className="text-xs text-muted">
+                  {item.amount === 0 ? "Empty account" : formatAmt(item.amount, item.amount >= 1_000 ? 0 : 4)}
+                  {item.valueUsd !== null ? ` · ${formatUsd(item.valueUsd)}` : " · no price"}
+                  {item.action === "swap" ? " · swap to SOL" : " · burn + close"}
+                  {item.swapSol ? ` · ${formatAmt(item.swapSol, 6)} SOL` : ""}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
       <div className="mt-4 space-y-2">
-        {intent.effects.length === 0 ? (
+        {intent.kind === "incinerate" ? (
+          <div className="rounded-control border border-line px-3 py-3 text-sm">
+            <p>Rent {formatAmt(intent.rentSol, 6)} SOL</p>
+            <p className="mt-1">Swaps {formatAmt(intent.swapSol, 6)} SOL</p>
+            <p className="mt-1">Fee {formatAmt(intent.feeSol, 6)} SOL ({(intent.feeBps / 100).toFixed(intent.feeBps % 100 === 0 ? 0 : 1)}%) to {intent.feeWallet.slice(0, 4)}…{intent.feeWallet.slice(-4)}</p>
+            <p className="mt-2 font-medium">Net +{formatAmt(intent.netSol, 6)} SOL</p>
+          </div>
+        ) : intent.effects.length === 0 ? (
           <p className="rounded-control border border-line px-3 py-3 text-sm text-muted">No token movement.</p>
         ) : (
           intent.effects.map((effect) => (

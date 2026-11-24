@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiIncineratorRouteImport } from './routes/api/incinerator'
 import { Route as ApiMarketRouteImport } from './routes/api/market'
 import { Route as ApiStakeRouteImport } from './routes/api/stake'
 import { Route as ApiStakeWalletRouteImport } from './routes/api/stake-wallet'
@@ -18,6 +19,11 @@ import { Route as ApiWalletRouteImport } from './routes/api/wallet'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiIncineratorRoute = ApiIncineratorRouteImport.update({
+  id: '/api/incinerator',
+  path: '/api/incinerator',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiMarketRoute = ApiMarketRouteImport.update({
@@ -43,6 +49,7 @@ const ApiWalletRoute = ApiWalletRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/incinerator': typeof ApiIncineratorRoute
   '/api/market': typeof ApiMarketRoute
   '/api/stake': typeof ApiStakeRoute
   '/api/stake-wallet': typeof ApiStakeWalletRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/incinerator': typeof ApiIncineratorRoute
   '/api/market': typeof ApiMarketRoute
   '/api/stake': typeof ApiStakeRoute
   '/api/stake-wallet': typeof ApiStakeWalletRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/incinerator': typeof ApiIncineratorRoute
   '/api/market': typeof ApiMarketRoute
   '/api/stake': typeof ApiStakeRoute
   '/api/stake-wallet': typeof ApiStakeWalletRoute
@@ -66,12 +75,24 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/api/market' | '/api/stake' | '/api/stake-wallet' | '/api/wallet'
+    | '/'
+    | '/api/incinerator'
+    | '/api/market'
+    | '/api/stake'
+    | '/api/stake-wallet'
+    | '/api/wallet'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/market' | '/api/stake' | '/api/stake-wallet' | '/api/wallet'
+  to:
+    | '/'
+    | '/api/incinerator'
+    | '/api/market'
+    | '/api/stake'
+    | '/api/stake-wallet'
+    | '/api/wallet'
   id:
     | '__root__'
     | '/'
+    | '/api/incinerator'
     | '/api/market'
     | '/api/stake'
     | '/api/stake-wallet'
@@ -80,6 +101,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiIncineratorRoute: typeof ApiIncineratorRoute
   ApiMarketRoute: typeof ApiMarketRoute
   ApiStakeRoute: typeof ApiStakeRoute
   ApiStakeWalletRoute: typeof ApiStakeWalletRoute
@@ -93,6 +115,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/incinerator': {
+      id: '/api/incinerator'
+      path: '/api/incinerator'
+      fullPath: '/api/incinerator'
+      preLoaderRoute: typeof ApiIncineratorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/market': {
@@ -128,6 +157,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiIncineratorRoute: ApiIncineratorRoute,
   ApiMarketRoute: ApiMarketRoute,
   ApiStakeRoute: ApiStakeRoute,
   ApiStakeWalletRoute: ApiStakeWalletRoute,

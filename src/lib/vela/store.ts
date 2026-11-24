@@ -6,6 +6,7 @@ import { uid } from "@/lib/vela/format";
 import { safeHttpUrl } from "@/lib/vela/open-url";
 import type { TxIntent } from "@/lib/vela/provider";
 import type { NativeStakePosition } from "@/lib/vela/stake";
+import { preferSwapOutput } from "@/lib/vela/incinerator";
 import { STARTER_HOLDINGS, STARTER_NFTS, tokenBySymbol, type Nft } from "@/lib/vela/tokens";
 
 export type WalletMode = "seed" | "passkey" | "imported";
@@ -17,7 +18,7 @@ export type Wallet = {
   createdAt: number;
 };
 
-export type ActivityKind = "swap" | "send" | "receive" | "stake" | "buy" | "dapp" | "nft" | "message";
+export type ActivityKind = "swap" | "send" | "receive" | "stake" | "buy" | "dapp" | "nft" | "message" | "incinerate";
 
 export type ActivityItem = {
   id: string;
@@ -48,13 +49,26 @@ export type Revenue = {
 };
 
 export type Tab = "home" | "explore" | "swap" | "activity" | "more";
-export type MoreRoute = "root" | "stake" | "buy" | "sites" | "pro" | "security" | "blueprint";
+export type MoreRoute = "root" | "stake" | "buy" | "sites" | "pro" | "security" | "blueprint" | "collectibles";
 export type Priority = "low" | "fast" | "protect";
 
 export type BrowserState = {
   dappId: string;
   url: string;
   stage: "gate" | "site";
+};
+
+export type SwapPrefill = {
+  input: string;
+  output: string;
+  token?: {
+    symbol: string;
+    name: string;
+    mint: string;
+    decimals: number;
+    priceUsd: number | null;
+    image?: string | null;
+  };
 };
 
 export type Sheet =
@@ -78,6 +92,7 @@ type Persisted = {
   priority: Priority;
   customRpc: string;
   nativeStakes: NativeStakePosition[];
+  incineratedMints: string[];
 };
 
 type Ephemeral = {
@@ -89,6 +104,7 @@ type Ephemeral = {
   toast: string | null;
   lastSignature: string | null;
   watchAddress: string | null;
+  swapPrefill: SwapPrefill | null;
 };
 
 type Actions = {
@@ -113,6 +129,8 @@ type Actions = {
   setPriority: (priority: Priority) => void;
   setCustomRpc: (customRpc: string) => void;
   setWatchAddress: (address: string | null) => void;
+  openSwap: (from?: string | SwapPrefill) => void;
+  clearSwapPrefill: () => void;
 };
 
 const EMPTY_REVENUE: Revenue = { swapFeesUsd: 0, stakeRevUsd: 0, onrampRevUsd: 0 };
@@ -179,6 +197,7 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
       priority: "fast",
       customRpc: "https://mainnet.helius-rpc.com/?api-key=YOUR_KEY",
       nativeStakes: [],
+      incineratedMints: [],
       hydrated: false,
       tab: "home",
       more: "root",
@@ -187,6 +206,7 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
       toast: null,
       lastSignature: null,
       watchAddress: null,
+      swapPrefill: null,
 
       setHydrated: (hydrated) => set({ hydrated }),
       setTab: (tab) => set({ tab, more: tab === "more" ? get().more : "root" }),
@@ -207,6 +227,7 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
           recents: [],
           revenue: { ...EMPTY_REVENUE },
           nativeStakes: [],
+          incineratedMints: [],
           tab: "home",
           more: "root",
           sheet: null,
@@ -225,6 +246,7 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
           recents: [],
           revenue: { ...EMPTY_REVENUE },
           nativeStakes: [],
+          incineratedMints: [],
           pro: false,
           watchAddress: null,
           sheet: null,
@@ -238,6 +260,7 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
           holdings: { ...STARTER_HOLDINGS },
           nfts: [...STARTER_NFTS],
           nativeStakes: [],
+          incineratedMints: [],
           toast: "Sandbox balances restored",
         }),
 
@@ -412,6 +435,29 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
             detail: intent.site,
             usd: intent.usd,
           });
+        } else if (intent.kind === "incinerate") {
+          for (const item of intent.items) {
+            if (item.symbol) delete holdings[item.symbol];
+          }
+          holdings = applyDeltas(holdings, { SOL: intent.netSol - intent.networkFeeSol });
+          revenue = { ...revenue, swapFeesUsd: revenue.swapFeesUsd + intent.feeSol * (tokenBySymbol("SOL").priceUsd) };
+          activity = pushActivity(activity, {
+            kind: "incinerate",
+            title: `Incinerated ${intent.items.length} token account${intent.items.length === 1 ? "" : "s"}`,
+            detail: `Simulated · ${intent.netSol.toFixed(6)} SOL back · nothing broadcasts`,
+            usd: intent.netSol * tokenBySymbol("SOL").priceUsd,
+          });
+          set({
+            holdings,
+            nfts,
+            revenue,
+            activity,
+            incineratedMints: [...new Set([...get().incineratedMints, ...intent.items.map((item) => item.mint)])],
+            sheet: null,
+            lastSignature: signature,
+            toast: "Signed in sandbox",
+          });
+          return;
         } else if (intent.kind === "drain") {
           holdings = Object.fromEntries(Object.keys(holdings).map((symbol) => [symbol, 0]));
           nfts = [];
@@ -447,6 +493,23 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
       setPriority: (priority) => set({ priority }),
       setCustomRpc: (customRpc) => set({ customRpc }),
       setWatchAddress: (watchAddress) => set({ watchAddress, tab: "home" }),
+
+      openSwap: (from) => {
+        if (!from) {
+          set({ tab: "swap", more: "root", swapPrefill: null });
+          return;
+        }
+        if (typeof from === "string") {
+          set({ tab: "swap", more: "root", swapPrefill: { input: from, output: preferSwapOutput(from) } });
+          return;
+        }
+        set({
+          tab: "swap",
+          more: "root",
+          swapPrefill: { input: from.input, output: from.output || preferSwapOutput(from.input), token: from.token },
+        });
+      },
+      clearSwapPrefill: () => set({ swapPrefill: null }),
     }),
     {
       name: "vela-sandbox-v1",
@@ -465,7 +528,25 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
         priority: state.priority,
         customRpc: state.customRpc,
         nativeStakes: state.nativeStakes,
+        incineratedMints: state.incineratedMints,
       }),
+      merge: (persisted, current) => {
+        const saved = (persisted ?? {}) as Partial<Persisted>;
+        const holdings = { ...(saved.holdings ?? current.holdings) };
+        const incinerated = new Set(saved.incineratedMints ?? []);
+        for (const [symbol, amount] of Object.entries(STARTER_HOLDINGS)) {
+          if (symbol in holdings) continue;
+          const token = tokenBySymbol(symbol);
+          if (incinerated.has(token.mint)) continue;
+          holdings[symbol] = amount;
+        }
+        return {
+          ...current,
+          ...saved,
+          holdings,
+          incineratedMints: saved.incineratedMints ?? [],
+        };
+      },
     },
   ),
 );
