@@ -65,6 +65,13 @@ async function heliusCall(key: string, method: string, params: unknown): Promise
   return postJson(heliusEndpoint(key), { jsonrpc: "2.0", id: "solportal", method, params });
 }
 
+export async function heliusRpc(method: string, params: unknown): Promise<unknown> {
+  const key = heliusApiKey();
+  if (!key) throw new Error("HELIUS_UNAVAILABLE");
+  return heliusCall(key, method, params);
+}
+
+
 async function fetchJupiterPrices(mints: string[]): Promise<JupiterPriceQuote[]> {
   const ids = mints.join(",");
   try {

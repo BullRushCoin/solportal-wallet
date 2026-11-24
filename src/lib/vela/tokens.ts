@@ -84,6 +84,14 @@ export const TOKENS: Token[] = [
     priceUsd: 196.8,
     standard: "spl",
   },
+  {
+    symbol: "INF",
+    name: "Sanctum Infinity",
+    mint: "5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm",
+    decimals: 9,
+    priceUsd: 251.3,
+    standard: "spl",
+  },
 ];
 
 export const TOKEN_MAP = Object.fromEntries(TOKENS.map((token) => [token.symbol, token])) as Record<
@@ -100,6 +108,7 @@ export const STARTER_HOLDINGS: Record<string, number> = {
   JitoSOL: 2.1,
   mSOL: 0,
   bSOL: 0,
+  INF: 0,
 };
 
 export const STARTER_NFTS: Nft[] = [

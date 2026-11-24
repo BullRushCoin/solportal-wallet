@@ -1,3 +1,4 @@
+import { feeAccountForToken } from "@/lib/vela/fee-wallet";
 import { tokenBySymbol, type Token } from "@/lib/vela/tokens";
 
 /**
@@ -18,16 +19,12 @@ export const JUPITER_API = "https://api.jup.ag/swap/v1";
 export const JUPITER_LITE_API = "https://lite-api.jup.ag/swap/v1";
 
 /**
- * Replace with token accounts you control before mainnet.
+ * Fee accounts are the associated token accounts of `feeWalletAddress()`.
  * The mint of `feeAccount` must be either the input or the output mint of the swap.
  * Jupiter no longer requires the referral program for Metis swaps.
  * Use `instructionVersion=V2` when the fee mint is Token-2022.
+ * This sandbox never broadcasts, so nothing is actually collected.
  */
-export const DEMO_FEE_ACCOUNTS: Record<string, string> = {
-  SOL: "YOUR_WSOL_FEE_TOKEN_ACCOUNT",
-  USDC: "YOUR_USDC_FEE_TOKEN_ACCOUNT",
-  PYUSD: "YOUR_PYUSD_FEE_TOKEN_ACCOUNT",
-};
 
 export type QuoteRequest = {
   inputMint: string;
@@ -185,7 +182,7 @@ export function quoteDemo(
   const outBase = toBaseUnits(outUi, output.decimals);
   const feeBase = toBaseUnits(feeUi, feeMint.decimals);
   const minBase = outBase - applyBps(outBase, slippageBps);
-  const feeAccount = DEMO_FEE_ACCOUNTS[feeMint.symbol] ?? DEMO_FEE_ACCOUNTS.USDC ?? "";
+  const feeAccount = feeAccountForToken(feeMint);
 
   const jupiter: JupiterQuote = {
     inputMint: input.mint,
