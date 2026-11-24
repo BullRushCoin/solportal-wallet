@@ -22,7 +22,7 @@ Open [http://localhost:8080](http://localhost:8080).
 
 1. On the first screen, create a wallet or import the 12 sandbox words the app gives you. Do not type a real seed phrase.
 2. Home shows a simulated balance. Swap, Activity, and Explore are the other tabs.
-3. Home has Send, Receive, Swap, and Stake. Tap an asset to open Swap with that token prefilled. The Incinerator card on Home finds dead/dust tokens and empty accounts; a simulated one-click burn or swap-to-SOL reclaims rent. Collectibles and Buy live under More. Watch a public address to see its real LST, native stake, and dust token accounts (read-only).
+3. Home has Send, Receive, Swap, and Stake. Tap an asset to open Swap with that token prefilled. The Incinerator card on Home finds dead/dust tokens and empty accounts; a simulated one-click burn or swap-to-SOL reclaims rent. Collectibles, Buy, and Watch a wallet live under More. Watching a public address shows its real holdings, LST, native stake, and dust (read-only); Home then shows a compact banner with Back to sandbox.
 4. Approving a swap or a dApp request only updates the sandbox. The network never sees it.
 
 Stop the server with Ctrl+C.

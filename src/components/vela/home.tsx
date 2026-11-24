@@ -9,7 +9,6 @@ import { holdingsUsd, TOKENS } from "@/lib/vela/tokens";
 import { useMarket } from "@/lib/vela/use-market";
 import { SectionLabel, TokenMark, Mark } from "@/components/vela/ui";
 import { IncineratorCard } from "@/components/vela/incinerator-card";
-import { WatchAddressForm } from "@/components/vela/watch-address";
 
 export function HomeView() {
   const watchAddress = useVela((state) => state.watchAddress);
@@ -66,10 +65,6 @@ function SandboxHome() {
         <Quick icon={<ArrowDownLeft className="size-4" />} label="Receive" onClick={() => setSheet({ kind: "receive" })} />
         <Quick icon={<ArrowLeftRight className="size-4" />} label="Swap" onClick={() => openSwap()} />
         <Quick icon={<Landmark className="size-4" />} label="Stake" onClick={() => setMore("stake")} />
-      </div>
-
-      <div className="mt-8">
-        <WatchAddressForm compact />
       </div>
 
       <div className="mt-8 flex items-end justify-between">
@@ -171,7 +166,9 @@ function WatchedHome({ address }: { address: string }) {
         }}
       />
 
-      <p className="mt-8 font-mono text-xs tracking-widest text-muted uppercase">Portfolio</p>
+      <WatchBanner address={address} />
+
+      <p className="mt-6 font-mono text-xs tracking-widest text-muted uppercase">Portfolio</p>
       {loading ? <p className="mt-3 text-sm text-muted">Loading live holdings…</p> : null}
       {error ? <p className="mt-3 text-sm text-danger">{error}</p> : null}
       {!loading && !error ? (
@@ -193,10 +190,6 @@ function WatchedHome({ address }: { address: string }) {
         <Quick icon={<ArrowDownLeft className="size-4" />} label="Receive" onClick={() => setSheet({ kind: "receive" })} />
         <Quick icon={<ArrowLeftRight className="size-4" />} label="Swap" onClick={() => openSwap()} />
         <Quick icon={<Landmark className="size-4" />} label="Stake" onClick={() => setMore("stake")} />
-      </div>
-
-      <div className="mt-6">
-        <WatchAddressForm compact />
       </div>
 
       <div className="mt-8 flex items-end justify-between">
@@ -240,6 +233,29 @@ function WatchedHome({ address }: { address: string }) {
       </ul>
 
       <IncineratorCard address={address} viewOnly />
+    </div>
+  );
+}
+
+function WatchBanner({ address }: { address: string }) {
+  const setWatchAddress = useVela((state) => state.setWatchAddress);
+  const setToast = useVela((state) => state.setToast);
+  return (
+    <div className="mt-4 flex items-center gap-3 rounded-full border border-line bg-surface px-3 py-2">
+      <div className="min-w-0 flex-1">
+        <p className="font-mono text-[10px] tracking-widest text-muted uppercase">Watching</p>
+        <p className="truncate font-mono text-xs">{shortAddr(address)}</p>
+      </div>
+      <button
+        type="button"
+        className="shrink-0 px-2 text-xs text-accent"
+        onClick={() => {
+          setWatchAddress(null);
+          setToast("Back to the sandbox wallet.");
+        }}
+      >
+        Back to sandbox
+      </button>
     </div>
   );
 }

@@ -49,7 +49,7 @@ export type Revenue = {
 };
 
 export type Tab = "home" | "explore" | "swap" | "activity" | "more";
-export type MoreRoute = "root" | "stake" | "buy" | "sites" | "pro" | "security" | "blueprint" | "collectibles";
+export type MoreRoute = "root" | "stake" | "buy" | "sites" | "pro" | "security" | "blueprint" | "collectibles" | "watch";
 export type Priority = "low" | "fast" | "protect";
 
 export type BrowserState = {
@@ -492,7 +492,7 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
       setPro: (pro) => set({ pro, priority: pro ? "protect" : get().priority === "protect" ? "fast" : get().priority }),
       setPriority: (priority) => set({ priority }),
       setCustomRpc: (customRpc) => set({ customRpc }),
-      setWatchAddress: (watchAddress) => set({ watchAddress, tab: "home" }),
+      setWatchAddress: (watchAddress) => set({ watchAddress, tab: "home", more: "root" }),
 
       openSwap: (from) => {
         if (!from) {

@@ -39,8 +39,9 @@ export function VelaApp() {
   }, [setToast, toast]);
 
   return (
-    <div className="min-h-dvh bg-bg text-fg lg:flex lg:h-dvh lg:overflow-hidden">
-      <section className="relative mx-auto flex h-dvh w-full max-w-lg flex-col border-line lg:mx-0 lg:w-112 lg:max-w-none lg:shrink-0 lg:border-r">
+    <div className="app-frame min-h-dvh text-fg lg:flex lg:h-dvh lg:overflow-hidden">
+      <Atmosphere />
+      <section className="relative z-10 mx-auto flex h-dvh w-full max-w-lg flex-col border-line lg:mx-0 lg:w-112 lg:max-w-none lg:shrink-0 lg:border-r">
         <div className="min-h-0 flex-1 overflow-y-auto">
           {wallet || watchAddress ? <WalletBody tab={tab} /> : <Onboarding />}
         </div>
@@ -48,12 +49,12 @@ export function VelaApp() {
         <Sheets />
         {wallet || watchAddress ? <BrowserView /> : null}
         {toast ? (
-          <div className="pointer-events-none absolute inset-x-4 bottom-24 z-50 rounded-control border border-line bg-surface px-4 py-3 text-sm">
+          <div className="pointer-events-none absolute inset-x-4 bottom-24 z-50 rounded-control border border-line bg-surface px-4 py-3 text-sm text-fg">
             {toast}
           </div>
         ) : null}
       </section>
-      <aside className="hidden min-h-0 flex-1 overflow-y-auto lg:block">
+      <aside className="relative z-10 hidden min-h-0 flex-1 overflow-y-auto lg:block">
         <Blueprint />
       </aside>
     </div>
@@ -70,7 +71,7 @@ function WalletBody({ tab }: { tab: Tab }) {
 
 function Nav({ tab, onTab }: { tab: Tab; onTab: (tab: Tab) => void }) {
   return (
-    <nav className="nav-safe grid grid-cols-5 border-t border-line bg-bg px-1">
+    <nav className="nav-safe grid grid-cols-5 border-t border-line bg-surface px-1">
       {TABS.map((item) => {
         const Icon = item.icon;
         const active = tab === item.id;
@@ -90,5 +91,16 @@ function Nav({ tab, onTab }: { tab: Tab; onTab: (tab: Tab) => void }) {
         );
       })}
     </nav>
+  );
+}
+
+function Atmosphere() {
+  return (
+    <div className="app-atmosphere" aria-hidden="true">
+      <div className="app-atmosphere__orb app-atmosphere__orb--gold" />
+      <div className="app-atmosphere__orb app-atmosphere__orb--violet" />
+      <div className="app-atmosphere__orb app-atmosphere__orb--teal" />
+      <div className="app-atmosphere__grain" />
+    </div>
   );
 }
