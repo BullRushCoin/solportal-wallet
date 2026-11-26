@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, Globe, Info, MessageCircle, Pause, Play, Send as SendIcon } from "lucide-react";
 import { formatCompactUsd, formatUsd, shortAddr } from "@/lib/vela/format";
 import { TICKER_COINS } from "@/lib/vela/market-tickers";
-import { buyRatio, formatAge, type MemeCoin } from "@/lib/vela/memecoins";
+import { buyRatio, formatAge, MEME_SORTS, sortMemeCoins, type MemeCoin, type MemeSort } from "@/lib/vela/memecoins";
 import { useVela, type WatchItem } from "@/lib/vela/store";
 import { useLivePrices, useMemeFeed, useNow, type LiveQuote } from "@/lib/vela/use-live";
 import { SectionLabel, TokenMark } from "@/components/vela/ui";
@@ -152,6 +152,8 @@ function Memecoins() {
   const [info, setInfo] = useState(false);
   const { feed, error, loading } = useMemeFeed(paused, 15_000);
   const now = useNow(1_000);
+  const [sort, setSort] = useState<MemeSort>("new");
+  const coins = useMemo(() => (feed ? sortMemeCoins(feed.coins, sort) : []), [feed, sort]);
   const live = !paused && !error && !feed?.stale;
 
   return (
@@ -179,7 +181,21 @@ function Memecoins() {
           <Info className="size-5" />
         </button>
       </div>
-      <p className="mt-1 text-xs text-muted">New Solana pools, newest first. Not advice: most new coins go to zero.</p>
+      <p className="mt-1 text-xs text-muted">New Solana pools. Not advice: most new coins go to zero.</p>
+      <div role="tablist" aria-label="Sort memecoins" className="[scrollbar-width:none] -mx-5 mt-3 flex gap-2 overflow-x-auto px-5">
+        {MEME_SORTS.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            role="tab"
+            aria-selected={sort === option.id}
+            onClick={() => setSort(option.id)}
+            className={`h-8 shrink-0 rounded-full border px-3 text-xs ${sort === option.id ? "border-accent bg-accent text-on-accent" : "border-line bg-surface text-muted"}`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
 
       {info ? (
         <div role="note" className="mt-3 rounded-control border border-line bg-surface-2 p-3 text-xs leading-relaxed text-muted">
@@ -215,7 +231,7 @@ function Memecoins() {
         </p>
       ) : (
         <ul className="mt-3 space-y-3">
-          {feed.coins.map((coin) => (
+          {coins.map((coin) => (
             <MemeCard key={coin.mint} coin={coin} now={now} />
           ))}
         </ul>

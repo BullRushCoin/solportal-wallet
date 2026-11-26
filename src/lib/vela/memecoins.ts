@@ -310,3 +310,36 @@ export function buyRatio(buys: number | null, sells: number | null): number | nu
   if (b + s === 0) return null;
   return b / (b + s);
 }
+
+export const MEME_SORTS = [
+  { id: "new", label: "New" },
+  { id: "trending", label: "Trending" },
+  { id: "mcap", label: "Market cap" },
+  { id: "volume", label: "Volume" },
+  { id: "liquidity", label: "Liquidity" },
+] as const;
+export type MemeSort = (typeof MEME_SORTS)[number]["id"];
+
+/** Trending = recent activity: 5m volume first, then trade count, then 24h volume. */
+function trendScore(coin: MemeCoin): number {
+  const trades = (coin.buys24h ?? 0) + (coin.sells24h ?? 0);
+  return (coin.volume5mUsd ?? 0) * 1000 + trades * 10 + (coin.volume24hUsd ?? 0) / 1000;
+}
+
+export function sortMemeCoins(coins: MemeCoin[], sort: MemeSort): MemeCoin[] {
+  const key = (coin: MemeCoin): number => {
+    switch (sort) {
+      case "new":
+        return coin.createdAt ?? 0;
+      case "trending":
+        return trendScore(coin);
+      case "mcap":
+        return coin.marketCapUsd ?? -1;
+      case "volume":
+        return coin.volume24hUsd ?? coin.volume5mUsd ?? -1;
+      case "liquidity":
+        return coin.liquidityUsd ?? -1;
+    }
+  };
+  return [...coins].sort((a, b) => key(b) - key(a));
+}

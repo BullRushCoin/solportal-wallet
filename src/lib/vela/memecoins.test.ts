@@ -4,6 +4,7 @@ import { parseMintList, TICKER_COINS } from "@/lib/vela/market-tickers";
 import {
   addSocial,
   buyRatio,
+  sortMemeCoins,
   formatAge,
   mergeFeed,
   parseDexPairs,
@@ -179,4 +180,15 @@ describe("formatting", () => {
     assert.deepEqual(parseMintList(null), []);
     assert.equal(new Set(TICKER_COINS.map((coin) => coin.mint)).size, TICKER_COINS.length);
   });
+});
+
+it("sortMemeCoins orders by market cap and puts unknowns last", () => {
+  const base = { symbol: "X", name: "X", decimals: null, image: null, marketCapKind: null, liquidityUsd: null, volume24hUsd: null, volume5mUsd: null, buys24h: null, sells24h: null, priceUsd: null, dex: null, dexUrl: "", socials: { x: null, telegram: null, discord: null, website: null }, safety: null, sources: [] } as const;
+  const coins = [
+    { ...base, mint: "a", createdAt: 3, marketCapUsd: null },
+    { ...base, mint: "b", createdAt: 1, marketCapUsd: 500 },
+    { ...base, mint: "c", createdAt: 2, marketCapUsd: 900 },
+  ];
+  assert.deepEqual(sortMemeCoins(coins as never, "mcap").map((c) => c.mint), ["c", "b", "a"]);
+  assert.deepEqual(sortMemeCoins(coins as never, "new").map((c) => c.mint), ["a", "c", "b"]);
 });
