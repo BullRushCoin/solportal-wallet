@@ -7,6 +7,7 @@ import { useExplore } from "@/lib/vela/use-explore";
 import { useVela } from "@/lib/vela/store";
 import type { ExploreDappRow, ExplorePairRow, ExplorePerpMarket, ExploreSnapshot } from "@/lib/vela/explore";
 import { SectionLabel } from "@/components/vela/ui";
+import { NewsSection } from "@/components/vela/news-section";
 
 export function ExploreView() {
   const openDapp = useVela((state) => state.openDapp);
@@ -14,7 +15,7 @@ export function ExploreView() {
   const bookmarks = useVela((state) => state.bookmarks);
   const recents = useVela((state) => state.recents);
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<Category | "All">("All");
+  const [category, setCategory] = useState<Category | "All" | "News">("All");
   const explore = useExplore();
 
   const sponsored = DIRECTORY.filter((dapp) => dapp.sponsored);
@@ -130,6 +131,9 @@ export function ExploreView() {
         </div>
       ) : null}
 
+      {category === "News" && !searching ? <NewsSection /> : null}
+
+      {category === "News" && !searching ? null : (
       <div className="mt-6">
         <div className="flex items-end justify-between gap-3">
           <SectionLabel>{searching ? "Results" : "Trending"}</SectionLabel>
@@ -147,6 +151,7 @@ export function ExploreView() {
           )}
         </ul>
       </div>
+      )}
 
       {showMarkets && !searching ? (
         <>

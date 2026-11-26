@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Wallet } from "lucide-react";
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Globe, MessageCircle, Send as SendIcon, Wallet } from "lucide-react";
+import { openSafeHttpUrl } from "@/lib/vela/open-url";
+import type { TokenLinks } from "@/lib/vela/social";
 import { Area, AreaChart, ReferenceDot, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatAmt, formatChangePct, formatUsd } from "@/lib/vela/format";
 import { useVela, type AssetSheetToken } from "@/lib/vela/store";
@@ -45,6 +47,16 @@ export function AssetSheet({ token, amount, viewOnly }: { token: AssetSheetToken
   const [isLive, setIsLive] = useState(false);
   const [flash, setFlash] = useState<"up" | "down" | null>(null);
   const lastPrice = useRef<number | null>(token.priceUsd);
+  const [links, setLinks] = useState<TokenLinks | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetch(`/api/token-links?mint=${encodeURIComponent(token.mint)}`, { signal: controller.signal })
+      .then((res) => (res.ok ? (res.json() as Promise<TokenLinks>) : null))
+      .then((body) => body && setLinks(body))
+      .catch(() => {});
+    return () => controller.abort();
+  }, [token.mint]);
 
   // Chart history for the selected range.
   useEffect(() => {
@@ -221,6 +233,14 @@ export function AssetSheet({ token, amount, viewOnly }: { token: AssetSheetToken
           <p className="mt-1 text-sm text-muted">Value</p>
         </div>
       </div>
+      {links && (links.x || links.website || links.telegram || links.discord) ? (
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
+          {links.x ? <LinkChip label="X" icon={<XLogo />} url={links.x} /> : null}
+          {links.telegram ? <LinkChip label="Telegram" icon={<SendIcon className="size-4" />} url={links.telegram} /> : null}
+          {links.discord ? <LinkChip label="Discord" icon={<MessageCircle className="size-4" />} url={links.discord} /> : null}
+          {links.website ? <LinkChip label="Website" icon={<Globe className="size-4" />} url={links.website} /> : null}
+        </div>
+      ) : null}
       {viewOnly ? <p className="mt-2 text-center text-xs text-muted">Watch only · actions use your sandbox wallet</p> : null}
 
       <div className="mt-5 grid grid-cols-4 gap-2">
@@ -245,5 +265,26 @@ function Action({ icon, label, onClick, primary }: { icon: React.ReactNode; labe
       </span>
       <span className="text-xs text-muted">{label}</span>
     </button>
+  );
+}
+
+function LinkChip({ label, icon, url }: { label: string; icon: React.ReactNode; url: string }) {
+  return (
+    <button
+      type="button"
+      onClick={() => openSafeHttpUrl(url)}
+      className="inline-flex h-9 items-center gap-2 rounded-full border border-line bg-surface-2 px-3 text-sm"
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+function XLogo() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-3.5" fill="currentColor" aria-hidden>
+      <path d="M18.9 2H22l-7.6 8.7L23 22h-6.8l-5.3-6.9L4.8 22H1.7l8.1-9.3L1 2h7l4.8 6.3L18.9 2Zm-1.2 18h1.7L7.4 3.9H5.6L17.7 20Z" />
+    </svg>
   );
 }

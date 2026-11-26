@@ -194,13 +194,13 @@ export const DAPPS: Dapp[] = [
   },
 ];
 
-export const CATEGORIES: Array<Category | "All"> = [
+export const CATEGORIES: Array<Category | "All" | "News"> = [
   "All",
+  "News",
   "DeFi",
   "DEX",
   "NFT",
   "Gaming",
-  "Social",
   "Staking",
 ];
 
