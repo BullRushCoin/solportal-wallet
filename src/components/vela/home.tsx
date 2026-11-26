@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Copy, Landmark } from "lucide-react";
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Copy, Landmark, Search, X } from "lucide-react";
+import { isSolanaAddress } from "@/lib/vela/address";
 import { formatAmt, formatChangePct, formatUsd, shortAddr } from "@/lib/vela/format";
 import type { FungibleHolding, NftHolding, WatchedWallet } from "@/lib/vela/helius-parse";
 import { holdingsChange24h } from "@/lib/vela/market";
@@ -28,7 +29,8 @@ function SandboxHome() {
   const prices = Object.fromEntries(Object.entries(market.tokens).map(([symbol, quote]) => [symbol, quote.priceUsd]));
   const total = holdingsUsd(holdings, prices);
   const change = holdingsChange24h(holdings, market.tokens);
-  const rows = TOKENS.filter((token) => {
+  const [query, setQuery] = useState("");
+  const heldRows = TOKENS.filter((token) => {
     const amount = holdings[token.symbol] ?? 0;
     if (amount <= 0.0000001) return false;
     const quote = market.tokens[token.symbol];
@@ -36,6 +38,7 @@ function SandboxHome() {
     const valueUsd = holdingValueUsd(amount, price);
     return !isDeadCoin({ symbol: token.symbol, mint: token.mint, amount, valueUsd });
   });
+  const rows = heldRows.filter((token) => matchesQuery(query, token));
 
   return (
     <div className="px-5 pt-5 pb-6">
@@ -73,9 +76,15 @@ function SandboxHome() {
           Swap
         </button>
       </div>
+      <AssetSearch value={query} onChange={setQuery} />
       <ul className="mt-3 divide-y divide-line rounded-card border border-line bg-surface">
+        <TokenAddressResult query={query} knownMints={heldRows.map((token) => token.mint)} />
         {rows.length === 0 ? (
-          <li className="px-4 py-6 text-sm text-muted">No tokens left in the sandbox.</li>
+          query.trim() ? (
+            isSolanaAddress(query) ? null : <li className="px-4 py-6 text-sm text-muted">No assets match “{query.trim()}”.</li>
+          ) : (
+            <li className="px-4 py-6 text-sm text-muted">No tokens left in the sandbox.</li>
+          )
         ) : (
           rows.map((token) => {
             const amount = holdings[token.symbol] ?? 0;
@@ -152,7 +161,9 @@ function WatchedHome({ address }: { address: string }) {
       }
     : null;
   const allRows: FungibleHolding[] = data ? [...(sol && sol.amount > 0 ? [sol] : []), ...data.tokens] : [];
-  const rows = allRows.filter((token) => !isDeadCoin({ symbol: token.symbol, mint: token.mint, amount: token.amount, valueUsd: token.valueUsd }));
+  const [query, setQuery] = useState("");
+  const heldRows = allRows.filter((token) => !isDeadCoin({ symbol: token.symbol, mint: token.mint, amount: token.amount, valueUsd: token.valueUsd }));
+  const rows = heldRows.filter((token) => matchesQuery(query, token));
 
   return (
     <div className="px-5 pt-5 pb-6">
@@ -198,11 +209,17 @@ function WatchedHome({ address }: { address: string }) {
           Swap
         </button>
       </div>
+      <AssetSearch value={query} onChange={setQuery} />
       <ul className="mt-3 divide-y divide-line rounded-card border border-line bg-surface">
+        {!loading ? <TokenAddressResult query={query} knownMints={heldRows.map((token) => token.mint)} /> : null}
         {loading ? (
           <li className="px-4 py-6 text-sm text-muted">Fetching tokens…</li>
         ) : rows.length === 0 ? (
-          <li className="px-4 py-6 text-sm text-muted">No fungible tokens found for this address.</li>
+          query.trim() ? (
+            isSolanaAddress(query) ? null : <li className="px-4 py-6 text-sm text-muted">No assets match “{query.trim()}”.</li>
+          ) : (
+            <li className="px-4 py-6 text-sm text-muted">No fungible tokens found for this address.</li>
+          )
         ) : (
           rows.map((token) => (
             <AssetRow
@@ -234,6 +251,114 @@ function WatchedHome({ address }: { address: string }) {
 
       <IncineratorCard address={address} viewOnly />
     </div>
+  );
+}
+
+type TokenLookup = {
+  mint: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  priceUsd: number | null;
+  change24hPct: number | null;
+  image: string | null;
+};
+
+/** Match a holding by symbol, name, or (full or partial) mint address. */
+function matchesQuery(query: string, token: { symbol: string; name: string; mint: string }): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return token.symbol.toLowerCase().includes(q) || token.name.toLowerCase().includes(q) || token.mint.toLowerCase() === q || token.mint.toLowerCase().startsWith(q);
+}
+
+function AssetSearch({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <label className="mt-3 flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-2">
+      <Search className="size-4 shrink-0 text-muted" />
+      <input
+        type="text"
+        inputMode="search"
+        autoComplete="off"
+        autoCapitalize="off"
+        autoCorrect="off"
+        spellCheck={false}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Search name, symbol, or paste token address"
+        aria-label="Search assets by name, symbol, or token address"
+        className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted"
+      />
+      {value ? (
+        <button type="button" aria-label="Clear search" className="shrink-0 text-muted" onClick={() => onChange("")}>
+          <X className="size-4" />
+        </button>
+      ) : null}
+    </label>
+  );
+}
+
+/** When the search box holds a mint address the wallet doesn't hold, look the coin up live. */
+function TokenAddressResult({ query, knownMints }: { query: string; knownMints: string[] }) {
+  const openSwap = useVela((state) => state.openSwap);
+  const mint = query.trim();
+  const shouldLookup = isSolanaAddress(mint) && !knownMints.includes(mint);
+  const [state, setState] = useState<{ mint: string; token: TokenLookup | null; error: string; loading: boolean }>({
+    mint: "",
+    token: null,
+    error: "",
+    loading: false,
+  });
+
+  useEffect(() => {
+    if (!shouldLookup) return;
+    const controller = new AbortController();
+    setState({ mint, token: null, error: "", loading: true });
+    void fetch(`/api/token?mint=${encodeURIComponent(mint)}`, { signal: controller.signal })
+      .then(async (res) => {
+        const body = (await res.json()) as TokenLookup & { error?: string };
+        if (!res.ok) throw new Error(body.error || "No token found at that address.");
+        return body;
+      })
+      .then((token) => setState({ mint, token, error: "", loading: false }))
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
+        const message = err instanceof Error ? err.message : "No token found at that address.";
+        setState({ mint, token: null, error: message === "Failed to fetch" ? "Couldn't reach token data. Try again." : message, loading: false });
+      });
+    return () => controller.abort();
+  }, [mint, shouldLookup]);
+
+  if (!shouldLookup) return null;
+  if (state.mint !== mint || state.loading) {
+    return <li className="px-4 py-4 text-sm text-muted">Looking up {shortAddr(mint)}…</li>;
+  }
+  if (!state.token) {
+    return <li className="px-4 py-4 text-sm text-danger">{state.error}</li>;
+  }
+  const token = state.token;
+  return (
+    <AssetRow
+      symbol={token.symbol}
+      name={`${token.name} · ${shortAddr(token.mint)}`}
+      image={token.image}
+      amount={0}
+      usd={token.priceUsd}
+      change24hPct={token.change24hPct}
+      onClick={() =>
+        openSwap({
+          input: token.symbol === "USDC" ? "SOL" : "USDC",
+          output: token.symbol,
+          token: {
+            symbol: token.symbol,
+            name: token.name,
+            mint: token.mint,
+            decimals: token.decimals,
+            priceUsd: token.priceUsd,
+            image: token.image,
+          },
+        })
+      }
+    />
   );
 }
 

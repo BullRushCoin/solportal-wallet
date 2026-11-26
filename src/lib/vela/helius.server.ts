@@ -1,6 +1,10 @@
 import { TOKENS } from "@/lib/vela/tokens";
 import {
+  asNumber,
+  asRecord,
+  asString,
   httpImageUrl,
+  parseAsset,
   imageFromTokenInfo,
   parseAssetBatch,
   parseAssetsByOwner,
@@ -17,6 +21,7 @@ const HELIUS_RPC = "https://mainnet.helius-rpc.com";
 const JUPITER_PRICE_V3 = "https://lite-api.jup.ag/price/v3";
 const JUPITER_PRICE_V2 = "https://lite-api.jup.ag/price/v2";
 const JUPITER_TOKEN_V1 = "https://lite-api.jup.ag/tokens/v1/token";
+const JUPITER_TOKEN_SEARCH_V2 = "https://lite-api.jup.ag/tokens/v2/search";
 
 type CacheEntry<T> = { at: number; value: T };
 
@@ -236,4 +241,73 @@ export async function loadWatchedWallet(address: string): Promise<WatchedWallet>
 export function clearHeliusCaches(): void {
   marketCache = null;
   walletCache.clear();
+  tokenCache.clear();
+}
+
+export type TokenLookup = {
+  mint: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  priceUsd: number | null;
+  change24hPct: number | null;
+  image: string | null;
+};
+
+const TOKEN_TTL_MS = 60_000;
+const tokenCache = new Map<string, CacheEntry<TokenLookup | null>>();
+
+/**
+ * Look up any SPL / Token-2022 coin by its mint address.
+ * Uses Helius DAS when HELIUS_API_KEY is set, and Jupiter's public token + price APIs either way.
+ * Returns null when the address is not a known fungible token.
+ */
+export async function lookupToken(mint: string): Promise<TokenLookup | null> {
+  const now = Date.now();
+  const cached = tokenCache.get(mint);
+  if (cached && now - cached.at < TOKEN_TTL_MS) return cached.value;
+
+  const key = heliusApiKey();
+  const [heliusAsset, jupInfo, prices] = await Promise.all([
+    key
+      ? heliusCall(key, "getAsset", { id: mint, displayOptions: { showFungible: true } })
+          .then((rpc) => asRecord(asRecord(rpc)?.result))
+          .catch(() => null)
+      : Promise.resolve(null),
+    getJson(`${JUPITER_TOKEN_SEARCH_V2}?query=${encodeURIComponent(mint)}`)
+      .then((payload) => asRecord((Array.isArray(payload) ? payload : []).find((item) => asRecord(item)?.id === mint)))
+      .catch(() => null),
+    fetchJupiterPrices([mint]).catch(() => [] as JupiterPriceQuote[]),
+  ]);
+
+  const tokenInfo = asRecord(heliusAsset?.token_info);
+  const meta = asRecord(asRecord(heliusAsset?.content)?.metadata);
+  const iface = asString(heliusAsset?.interface) ?? "";
+  const heliusDecimals = asNumber(tokenInfo?.decimals);
+  const looksNft = /NFT|ProgrammableNFT|MplCore/i.test(iface) && (heliusDecimals ?? 0) === 0;
+
+  const symbol = asString(jupInfo?.symbol) ?? asString(tokenInfo?.symbol) ?? asString(meta?.symbol);
+  const name = asString(jupInfo?.name) ?? asString(meta?.name) ?? symbol;
+  const decimals = asNumber(jupInfo?.decimals) ?? heliusDecimals;
+
+  let result: TokenLookup | null = null;
+  if (!looksNft && symbol && decimals !== null) {
+    const jup = prices.find((quote) => quote.mint === mint);
+    const heliusPrice = asNumber(asRecord(tokenInfo?.price_info)?.price_per_token);
+    const heliusImage = heliusAsset ? parseAsset(heliusAsset) : null;
+    const heliusImageUrl =
+      heliusImage?.kind === "fungible" ? heliusImage.holding.image : heliusImage?.kind === "quote" ? heliusImage.quote.image : null;
+    result = {
+      mint,
+      symbol,
+      name: name ?? symbol,
+      decimals,
+      priceUsd: jup?.priceUsd && jup.priceUsd > 0 ? jup.priceUsd : heliusPrice && heliusPrice > 0 ? heliusPrice : null,
+      change24hPct: jup?.change24hPct ?? null,
+      image: imageFromTokenInfo(jupInfo) ?? httpImageUrl(heliusImageUrl),
+    };
+  }
+
+  tokenCache.set(mint, { at: now, value: result });
+  return result;
 }
