@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDown } from "lucide-react";
-import { feeWalletAddress } from "@/lib/vela/fee-wallet";
 import { asSwapToken } from "@/lib/vela/incinerator";
 import { PLATFORM_FEE_BPS, quoteDemo } from "@/lib/vela/jupiter";
 import { formatAmt, formatUsd } from "@/lib/vela/format";
@@ -80,7 +79,7 @@ export function SwapView() {
         {
           level: "info",
           title: `${PLATFORM_FEE_BPS} bps platform fee`,
-          detail: `${formatAmt(quote.feeUi, 6)} ${quote.feeMint.symbol} would go to the ${quote.feeMint.symbol} ATA of fee wallet ${feeWalletAddress()} (${quote.feeAccount}). This sandbox does not collect it.`,
+          detail: `${formatAmt(quote.feeUi, 6)} ${quote.feeMint.symbol} would go to the SolPortal cold wallet. This sandbox does not collect it.`,
         },
       ],
     };
@@ -188,9 +187,8 @@ export function SwapView() {
           <Row k="Route" v={quote.jupiter.routePlan.map((hop) => `${hop.swapInfo.label} ${hop.percent}%`).join(" · ")} />
           <Row k="Platform fee" v={`${PLATFORM_FEE_BPS} bps · ${formatUsd(quote.feeUsd)}`} />
           <Row k="Fee mint" v={quote.feeMint.symbol} />
-          <Row k="Fee wallet" v={feeWalletAddress()} mono />
           <Row k="Price impact" v={`${quote.impactPct.toFixed(2)}%`} />
-          <Row k="Fee account (ATA)" v={quote.feeAccount} mono />
+          <Row k="Fee recipient" v="SolPortal cold wallet" />
         </dl>
       ) : null}
 

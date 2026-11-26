@@ -71,7 +71,7 @@ function SignSheet({ intent }: { intent: TxIntent }) {
           <div className="rounded-control border border-line px-3 py-3 text-sm">
             <p>Rent {formatAmt(intent.rentSol, 6)} SOL</p>
             <p className="mt-1">Swaps {formatAmt(intent.swapSol, 6)} SOL</p>
-            <p className="mt-1">Fee {formatAmt(intent.feeSol, 6)} SOL ({(intent.feeBps / 100).toFixed(intent.feeBps % 100 === 0 ? 0 : 1)}%) to {intent.feeWallet.slice(0, 4)}…{intent.feeWallet.slice(-4)}</p>
+            <p className="mt-1">Fee {formatAmt(intent.feeSol, 6)} SOL ({(intent.feeBps / 100).toFixed(intent.feeBps % 100 === 0 ? 0 : 1)}%) to SolPortal cold wallet</p>
             <p className="mt-2 font-medium">Net +{formatAmt(intent.netSol, 6)} SOL</p>
           </div>
         ) : intent.effects.length === 0 ? (

@@ -350,13 +350,13 @@ export function StakeView() {
   );
 }
 
-function simulatedWarnings(detail: string, feeWallet: string): TxIntent["warnings"] {
+function simulatedWarnings(detail: string, _feeWallet: string): TxIntent["warnings"] {
   return [
     { level: "info", title: "Simulated — nothing broadcasts", detail },
     {
       level: "info",
       title: "Fee wallet (not collected here)",
-      detail: `Public fee recipient ${feeWallet}. This sandbox never transfers fees.`,
+      detail: `Fee goes to the SolPortal cold wallet. This sandbox never transfers fees.`,
     },
   ];
 }

@@ -6,7 +6,6 @@ import { type TxIntent } from "@/lib/vela/provider";
 import { priorityFeeSol, useVela, type MoreRoute, type Priority } from "@/lib/vela/store";
 import { holdingsUsd, tokenBySymbol } from "@/lib/vela/tokens";
 import { Blueprint } from "@/components/vela/blueprint";
-import { feeWalletAddress } from "@/lib/vela/fee-wallet";
 import { GhostButton, PrimaryButton, SectionLabel } from "@/components/vela/ui";
 import { Collectibles } from "@/components/vela/home";
 import { StakeView } from "@/components/vela/stake-view";
@@ -66,21 +65,6 @@ export function MoreView() {
           </li>
         ))}
       </ul>
-      <div className="mt-5 rounded-card border border-line bg-surface p-4">
-        <p className="font-medium">Fee wallet</p>
-        <p className="mt-1 font-mono text-xs break-all text-muted">{feeWalletAddress()}</p>
-        <p className="mt-2 text-xs text-pretty text-muted">
-          Public fee-collection address. Watch it to see its real balance. This sandbox never sends it fees.
-        </p>
-        <button
-          className="mt-3 text-sm text-accent"
-          onClick={() => {
-            useVela.getState().setWatchAddress(feeWalletAddress());
-          }}
-        >
-          Watch fee wallet
-        </button>
-      </div>
       <div className="mt-6">
         <GhostButton onClick={resetWallet}>Erase sandbox wallet</GhostButton>
       </div>
@@ -117,21 +101,6 @@ function WatchWalletPage() {
         Paste any public Solana address to see live balances, logos, staking, and dust accounts. This app cannot sign or send from a watched wallet.
       </p>
       <WatchAddressForm compact />
-      <div className="mt-5 rounded-card border border-line bg-surface p-4">
-        <p className="font-medium">Fee wallet</p>
-        <p className="mt-1 font-mono text-xs break-all text-muted">{feeWalletAddress()}</p>
-        <p className="mt-2 text-xs text-pretty text-muted">
-          Public fee-collection address. Watch it to see its real balance. This sandbox never sends it fees.
-        </p>
-        <button
-          className="mt-3 text-sm text-accent"
-          onClick={() => {
-            useVela.getState().setWatchAddress(feeWalletAddress());
-          }}
-        >
-          Watch fee wallet
-        </button>
-      </div>
     </div>
   );
 }

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { feeAccountForToken } from "@/lib/vela/fee-wallet";
 import { buildSwapBody, PLATFORM_FEE_BPS, sampleQuoteUrl } from "@/lib/vela/jupiter";
 import { PROVIDER_BRIDGE_EXAMPLE, VELA_PROVIDER_METHODS } from "@/lib/vela/provider";
 import { RATE_CARD } from "@/lib/vela/dapps";
@@ -65,7 +64,7 @@ export function Blueprint({ embedded = false }: { embedded?: boolean }) {
       routePlan: [],
     },
     userPublicKey: "USER_PUBLIC_KEY",
-    feeAccount: feeAccountForToken(tokenBySymbol("USDC")),
+    feeAccount: "SOLPORTAL_FEE_ACCOUNT",
     prioritization: "fast",
   });
 

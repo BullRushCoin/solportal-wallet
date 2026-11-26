@@ -1,4 +1,3 @@
-import { feeWalletAddress } from "@/lib/vela/fee-wallet";
 import { formatAmt, formatUsd } from "@/lib/vela/format";
 import { incineratorFeeBps, type IncineratorPlan } from "@/lib/vela/incinerator";
 import { type TxIntent } from "@/lib/vela/provider";
@@ -72,7 +71,7 @@ export function IncineratorCard({
         {
           level: "info",
           title: `${(feeBps / 100).toFixed(feeBps % 100 === 0 ? 0 : 1)}% fee on reclaimed SOL`,
-          detail: `${formatAmt(plan.feeSol, 6)} SOL of the rent plus swap proceeds would go to fee wallet ${feeWalletAddress()}. This sandbox does not collect it.`,
+          detail: `${formatAmt(plan.feeSol, 6)} SOL of the rent plus swap proceeds would go to the SolPortal cold wallet. This sandbox does not collect it.`,
         },
       ],
     };
