@@ -78,7 +78,31 @@ export type Sheet =
   | { kind: "sign"; intent: TxIntent }
   | { kind: "connect"; dappId: string; next: TxIntent | { redirect: "swap" } | null }
   | { kind: "url" }
+  | { kind: "wallets" }
+  | { kind: "add-wallet" }
   | { kind: "asset"; token: AssetSheetToken; amount: number; viewOnly?: boolean };
+
+export type AccountKind = WalletMode | "watch";
+
+export type AccountSnapshot = {
+  holdings: Record<string, number>;
+  nfts: Nft[];
+  activity: ActivityItem[];
+  connected: ConnectedSite[];
+  nativeStakes: NativeStakePosition[];
+  incineratedMints: string[];
+};
+
+/** One entry in "My wallets". Sandbox wallets keep their balances in `snapshot` while inactive. */
+export type Account = {
+  id: string;
+  name: string;
+  kind: AccountKind;
+  address: string;
+  wallet: Wallet | null;
+  snapshot: AccountSnapshot | null;
+  createdAt: number;
+};
 
 export type AssetSheetToken = {
   symbol: string;
@@ -92,6 +116,8 @@ export type AssetSheetToken = {
 
 type Persisted = {
   wallet: Wallet | null;
+  accounts: Account[];
+  activeAccountId: string | null;
   holdings: Record<string, number>;
   nfts: Nft[];
   activity: ActivityItem[];
@@ -124,7 +150,11 @@ type Actions = {
   setMore: (more: MoreRoute) => void;
   setSheet: (sheet: Sheet) => void;
   setToast: (toast: string | null) => void;
-  createWallet: (mode: WalletMode, phrase: string[] | null) => Promise<void>;
+  createWallet: (mode: WalletMode, phrase: string[] | null, name?: string) => Promise<void>;
+  addWatchAccount: (address: string, name?: string) => void;
+  switchAccount: (id: string) => void;
+  renameAccount: (id: string, name: string) => void;
+  removeAccount: (id: string) => void;
   resetWallet: () => void;
   restoreSandbox: () => void;
   openDapp: (dappId: string, stage?: "gate" | "site") => void;
@@ -187,6 +217,48 @@ function applyDeltas(holdings: Record<string, number>, deltas: Record<string, nu
   return next;
 }
 
+function snapshotOf(state: Persisted): AccountSnapshot {
+  return {
+    holdings: state.holdings,
+    nfts: state.nfts,
+    activity: state.activity,
+    connected: state.connected,
+    nativeStakes: state.nativeStakes,
+    incineratedMints: state.incineratedMints,
+  };
+}
+
+/** Write the live top-level balances back into the sandbox account they belong to. */
+function captureLive(state: Persisted): Account[] {
+  const live = state.wallet?.address;
+  if (!live) return state.accounts;
+  return state.accounts.map((account) =>
+    account.kind !== "watch" && account.address === live ? { ...account, snapshot: snapshotOf(state) } : account,
+  );
+}
+
+function freshSnapshot(now: number): AccountSnapshot {
+  return {
+    holdings: { ...STARTER_HOLDINGS },
+    nfts: [...STARTER_NFTS],
+    activity: seedActivity(now),
+    connected: [],
+    nativeStakes: [],
+    incineratedMints: [],
+  };
+}
+
+function accountGroup(kind: AccountKind): "Wallet" | "Imported" | "Watched" {
+  return kind === "watch" ? "Watched" : kind === "imported" ? "Imported" : "Wallet";
+}
+
+function defaultName(accounts: Account[], kind: AccountKind): string {
+  if (accounts.length === 0) return "Main Wallet";
+  const group = accountGroup(kind);
+  const count = accounts.filter((account) => accountGroup(account.kind) === group).length;
+  return `${group} ${count + 1}`;
+}
+
 export function priorityFeeSol(priority: Priority): number {
   if (priority === "protect") return 0.0002;
   if (priority === "fast") return 0.00005;
@@ -197,6 +269,8 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
   persist(
     (set, get) => ({
       wallet: null,
+      accounts: [],
+      activeAccountId: null,
       holdings: { ...STARTER_HOLDINGS },
       nfts: [...STARTER_NFTS],
       activity: [],
@@ -225,20 +299,38 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
       setSheet: (sheet) => set({ sheet }),
       setToast: (toast) => set({ toast }),
 
-      createWallet: async (mode, phrase) => {
+      createWallet: async (mode, phrase, name) => {
         const address = phrase ? await addressFromPhrase(phrase.join(" ")) : randomAddress();
         const now = Date.now();
+        const state = get();
+        const accounts = captureLive(state);
+        const existing = accounts.find((account) => account.kind !== "watch" && account.address === address);
+        if (existing) {
+          set({ accounts });
+          get().switchAccount(existing.id);
+          set({ toast: "That wallet is already added" });
+          return;
+        }
+        const wallet: Wallet = { mode, address, phrase, createdAt: now };
+        const account: Account = {
+          id: uid(),
+          name: name?.trim() || defaultName(accounts, mode),
+          kind: mode,
+          address,
+          wallet,
+          snapshot: null,
+          createdAt: now,
+        };
+        const fresh = freshSnapshot(now);
         set({
-          wallet: { mode, address, phrase, createdAt: now },
-          holdings: { ...STARTER_HOLDINGS },
-          nfts: [...STARTER_NFTS],
-          activity: seedActivity(now),
-          connected: [],
-          bookmarks: [],
-          recents: [],
-          revenue: { ...EMPTY_REVENUE },
-          nativeStakes: [],
-          incineratedMints: [],
+          wallet,
+          accounts: [...accounts, account],
+          activeAccountId: account.id,
+          ...fresh,
+          bookmarks: state.wallet ? state.bookmarks : [],
+          recents: state.wallet ? state.recents : [],
+          revenue: state.wallet ? state.revenue : { ...EMPTY_REVENUE },
+          watchAddress: null,
           tab: "home",
           more: "root",
           sheet: null,
@@ -246,9 +338,93 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
         });
       },
 
+      addWatchAccount: (address, name) => {
+        const state = get();
+        const accounts = captureLive(state);
+        const existing = accounts.find((account) => account.kind === "watch" && account.address === address);
+        if (existing) {
+          set({ accounts, activeAccountId: existing.id, watchAddress: address, tab: "home", more: "root", sheet: null });
+          return;
+        }
+        const account: Account = {
+          id: uid(),
+          name: name?.trim() || defaultName(accounts, "watch"),
+          kind: "watch",
+          address,
+          wallet: null,
+          snapshot: null,
+          createdAt: Date.now(),
+        };
+        set({
+          accounts: [...accounts, account],
+          activeAccountId: account.id,
+          watchAddress: address,
+          tab: "home",
+          more: "root",
+          sheet: null,
+        });
+      },
+
+      switchAccount: (id) => {
+        const state = get();
+        const target = state.accounts.find((account) => account.id === id);
+        if (!target) return;
+        const accounts = captureLive(state);
+        if (target.kind === "watch") {
+          set({ accounts, activeAccountId: id, watchAddress: target.address, tab: "home", more: "root", sheet: null });
+          return;
+        }
+        const saved = accounts.find((account) => account.id === id)!;
+        const isLive = state.wallet?.address === target.address;
+        const snapshot = isLive ? snapshotOf(state) : (saved.snapshot ?? freshSnapshot(Date.now()));
+        set({
+          accounts,
+          activeAccountId: id,
+          wallet: target.wallet,
+          ...snapshot,
+          watchAddress: null,
+          tab: "home",
+          more: "root",
+          sheet: null,
+          browser: null,
+        });
+      },
+
+      renameAccount: (id, name) => {
+        const trimmed = name.trim().slice(0, 32);
+        if (!trimmed) return;
+        set({ accounts: get().accounts.map((account) => (account.id === id ? { ...account, name: trimmed } : account)) });
+      },
+
+      removeAccount: (id) => {
+        const state = get();
+        const target = state.accounts.find((account) => account.id === id);
+        if (!target) return;
+        const sandboxCount = state.accounts.filter((account) => account.kind !== "watch").length;
+        if (target.kind !== "watch" && sandboxCount <= 1) {
+          set({ toast: "Keep at least one wallet. Use Erase sandbox wallet to start over." });
+          return;
+        }
+        const accounts = captureLive(state).filter((account) => account.id !== id);
+        set({ accounts, toast: `Removed ${target.name}` });
+        const removingLive = target.kind !== "watch" && state.wallet?.address === target.address;
+        if (removingLive) {
+          const next = accounts.find((account) => account.kind !== "watch")!;
+          get().switchAccount(next.id);
+          set({ sheet: { kind: "wallets" } });
+          return;
+        }
+        if (state.activeAccountId === id) {
+          const live = accounts.find((account) => account.kind !== "watch" && account.address === state.wallet?.address);
+          set({ activeAccountId: live?.id ?? null, watchAddress: null });
+        }
+      },
+
       resetWallet: () =>
         set({
           wallet: null,
+          accounts: [],
+          activeAccountId: null,
           holdings: { ...STARTER_HOLDINGS },
           nfts: [...STARTER_NFTS],
           activity: [],
@@ -503,7 +679,15 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
       setPro: (pro) => set({ pro, priority: pro ? "protect" : get().priority === "protect" ? "fast" : get().priority }),
       setPriority: (priority) => set({ priority }),
       setCustomRpc: (customRpc) => set({ customRpc }),
-      setWatchAddress: (watchAddress) => set({ watchAddress, tab: "home", more: "root" }),
+      setWatchAddress: (watchAddress) => {
+        if (watchAddress) {
+          get().addWatchAccount(watchAddress);
+          return;
+        }
+        const state = get();
+        const live = state.accounts.find((account) => account.kind !== "watch" && account.address === state.wallet?.address);
+        set({ watchAddress: null, activeAccountId: live?.id ?? state.activeAccountId, tab: "home", more: "root" });
+      },
 
       openSwap: (from) => {
         if (!from) {
@@ -528,6 +712,8 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
       skipHydration: true,
       partialize: (state) => ({
         wallet: state.wallet,
+        accounts: state.accounts,
+        activeAccountId: state.activeAccountId,
         holdings: state.holdings,
         nfts: state.nfts,
         activity: state.activity,
@@ -551,9 +737,29 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
           if (incinerated.has(token.mint)) continue;
           holdings[symbol] = amount;
         }
+        let accounts = saved.accounts ?? [];
+        let activeAccountId = saved.activeAccountId ?? null;
+        if (saved.wallet && accounts.length === 0) {
+          // Upgrade from the single-wallet build: the existing wallet becomes "Main Wallet".
+          const main: Account = {
+            id: uid(),
+            name: "Main Wallet",
+            kind: saved.wallet.mode,
+            address: saved.wallet.address,
+            wallet: saved.wallet,
+            snapshot: null,
+            createdAt: saved.wallet.createdAt,
+          };
+          accounts = [main];
+          activeAccountId = main.id;
+        }
+        const active = accounts.find((account) => account.id === activeAccountId);
         return {
           ...current,
           ...saved,
+          accounts,
+          activeAccountId,
+          watchAddress: active?.kind === "watch" ? active.address : null,
           holdings,
           incineratedMints: saved.incineratedMints ?? [],
         };

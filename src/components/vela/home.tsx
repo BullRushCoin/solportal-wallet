@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Copy, Landmark, Search, X } from "lucide-react";
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, ChevronDown, Copy, Landmark, Search, X } from "lucide-react";
 import { isSolanaAddress } from "@/lib/vela/address";
 import { formatAmt, formatChangePct, formatUsd, shortAddr } from "@/lib/vela/format";
 import type { FungibleHolding, NftHolding, WatchedWallet } from "@/lib/vela/helius-parse";
@@ -10,6 +10,7 @@ import { holdingsUsd, TOKENS } from "@/lib/vela/tokens";
 import { useMarket } from "@/lib/vela/use-market";
 import { SectionLabel, TokenMark, Mark } from "@/components/vela/ui";
 import { Sparkline } from "@/components/vela/sparkline";
+import { AccountAvatar } from "@/components/vela/wallets-sheet";
 import { IncineratorCard } from "@/components/vela/incinerator-card";
 
 export function HomeView() {
@@ -402,15 +403,25 @@ function HomeHeader({
   copyHint?: string;
   onCopy: () => void;
 }) {
+  const setSheet = useVela((state) => state.setSheet);
+  const activeAccount = useVela((state) => state.accounts.find((account) => account.id === state.activeAccountId) ?? null);
   return (
     <header className="flex items-center justify-between gap-3">
-      <div className="flex items-center gap-2">
-        <Mark className="size-9" />
-        <div>
-          <p className="text-sm font-semibold tracking-wide">SolPortal</p>
-          <p className="font-mono text-xs text-muted">{label}</p>
+      <button
+        type="button"
+        className="flex min-w-0 items-center gap-2 text-left"
+        onClick={() => setSheet({ kind: "wallets" })}
+        aria-label="My wallets"
+      >
+        {activeAccount ? <AccountAvatar name={activeAccount.name} active size="sm" /> : <Mark className="size-9" />}
+        <div className="min-w-0">
+          <p className="flex items-center gap-1 text-sm font-semibold tracking-wide">
+            <span className="truncate">{activeAccount?.name ?? "SolPortal"}</span>
+            <ChevronDown className="size-3.5 shrink-0 text-muted" />
+          </p>
+          <p className="truncate font-mono text-xs text-muted">{label}</p>
         </div>
-      </div>
+      </button>
       <button
         className="inline-flex h-11 items-center gap-2 rounded-full border border-line bg-surface px-3 font-mono text-xs"
         onClick={onCopy}
