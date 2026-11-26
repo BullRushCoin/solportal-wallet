@@ -169,17 +169,67 @@ function CollectiblesPage() {
   );
 }
 
+const SOL_MINT = "So11111111111111111111111111111111111111112";
+const BUY_PRESETS = [10, 25, 50] as const;
+/** MoonPay: $20 minimum (moonpay.com/buy/sol); per-purchase max depends on the buyer's verification level. */
+const PARTNER_LIMITS: Record<(typeof PARTNERS)[number], { min: number; max: number } | null> = {
+  MoonPay: { min: 20, max: 30_000 },
+  Transak: null,
+  Stripe: null,
+};
+
+function useLiveSolPrice(): { price: number; live: boolean; updatedAt: number | null } {
+  const fallback = tokenBySymbol("SOL").priceUsd;
+  const [state, setState] = useState<{ price: number; live: boolean; updatedAt: number | null }>({
+    price: fallback,
+    live: false,
+    updatedAt: null,
+  });
+  useEffect(() => {
+    let stopped = false;
+    const tick = async () => {
+      try {
+        const res = await fetch(`/api/price?mint=${SOL_MINT}`, { cache: "no-store" });
+        if (!res.ok) return;
+        const body = (await res.json()) as { priceUsd: number | null };
+        if (!stopped && body.priceUsd) setState({ price: body.priceUsd, live: true, updatedAt: Date.now() });
+      } catch {
+        /* keep last price */
+      }
+    };
+    void tick();
+    const id = window.setInterval(() => void tick(), 5000);
+    return () => {
+      stopped = true;
+      window.clearInterval(id);
+    };
+  }, []);
+  return state;
+}
+
 function BuyPage() {
   const priority = useVela((state) => state.priority);
   const setSheet = useVela((state) => state.setSheet);
-  const [usd, setUsd] = useState(100);
+  const [preset, setPreset] = useState<number | "other">(25);
+  const [custom, setCustom] = useState("");
   const [partner, setPartner] = useState<(typeof PARTNERS)[number]>("MoonPay");
-  const sol = tokenBySymbol("SOL");
+  const sol = useLiveSolPrice();
+  const usd = preset === "other" ? Number(custom.replace(/[^0-9.]/g, "")) || 0 : preset;
+  const limits = PARTNER_LIMITS[partner];
   const spread = 0.015;
-  const out = (usd * (1 - spread)) / sol.priceUsd;
+  const out = usd > 0 ? (usd * (1 - spread)) / sol.price : 0;
   const commission = usd * 0.01;
+  const problem =
+    usd <= 0
+      ? "Enter an amount."
+      : limits && usd < limits.min
+        ? `${partner}'s minimum is ${formatUsd(limits.min)}.`
+        : limits && usd > limits.max
+          ? `${partner}'s maximum is ${formatUsd(limits.max)} per purchase.`
+          : null;
 
   function review() {
+    if (problem) return;
     const intent: TxIntent = {
       kind: "buy",
       origin: "https://solportal.wallet",
@@ -211,17 +261,49 @@ function BuyPage() {
       <p className="text-sm text-pretty text-muted">
         On iOS the live purchase has to open outside the in-app purchase flow. Apple does not allow buying crypto with IAP.
       </p>
-      <div className="mt-4 flex gap-2">
-        {[50, 100, 250].map((value) => (
+      <div className="mt-4 flex items-center justify-between rounded-control border border-line bg-surface px-3 py-2">
+        <span className="text-sm text-muted">SOL price</span>
+        <span className="flex items-center gap-2 font-mono text-sm tabular-nums">
+          <span className={`size-2 rounded-full ${sol.live ? "animate-pulse bg-emerald-400" : "bg-muted"}`} />
+          {formatUsd(sol.price)}
+        </span>
+      </div>
+      <div className="mt-3 grid grid-cols-4 gap-2">
+        {BUY_PRESETS.map((value) => (
           <button
             key={value}
-            onClick={() => setUsd(value)}
-            className={`h-11 flex-1 rounded-control border text-sm ${usd === value ? "border-accent bg-accent text-on-accent" : "border-line"}`}
+            onClick={() => setPreset(value)}
+            className={`h-11 rounded-control border text-sm ${preset === value ? "border-accent bg-accent text-on-accent" : "border-line"}`}
           >
             ${value}
           </button>
         ))}
+        <button
+          onClick={() => setPreset("other")}
+          className={`h-11 rounded-control border text-sm ${preset === "other" ? "border-accent bg-accent text-on-accent" : "border-line"}`}
+        >
+          Other
+        </button>
       </div>
+      {preset === "other" ? (
+        <label className="mt-2 flex h-12 items-center gap-1 rounded-control border border-accent bg-bg px-3">
+          <span className="text-muted">$</span>
+          <input
+            autoFocus
+            inputMode="decimal"
+            value={custom}
+            onChange={(event) => setCustom(event.target.value.replace(/[^0-9.]/g, "").slice(0, 9))}
+            placeholder="Enter amount"
+            className="min-w-0 flex-1 bg-transparent text-lg tabular-nums outline-none"
+          />
+          <span className="text-xs text-muted">USD</span>
+        </label>
+      ) : null}
+      <p className="mt-2 text-xs text-muted">
+        {limits
+          ? `${partner} limits: ${formatUsd(limits.min)} minimum, up to ${formatUsd(limits.max)} per purchase depending on your ${partner} verification level.`
+          : `Limits are set by ${partner} at checkout.`}
+      </p>
       <div className="mt-3 grid gap-2">
         {PARTNERS.map((name) => (
           <button
@@ -233,11 +315,17 @@ function BuyPage() {
           </button>
         ))}
       </div>
-      <p className="mt-4 text-sm text-muted">
-        You receive about {formatAmt(out, 4)} SOL after the partner spread. Affiliate {formatUsd(commission)}.
-      </p>
+      {problem ? (
+        <p className="mt-4 text-sm text-danger">{problem}</p>
+      ) : (
+        <p className="mt-4 text-sm text-muted">
+          You receive about {formatAmt(out, 4)} SOL after the partner spread. Affiliate {formatUsd(commission)}.
+        </p>
+      )}
       <div className="mt-4">
-        <PrimaryButton onClick={review}>Review purchase</PrimaryButton>
+        <PrimaryButton disabled={Boolean(problem)} onClick={review}>
+          Review purchase
+        </PrimaryButton>
       </div>
     </div>
   );
