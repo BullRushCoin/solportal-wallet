@@ -6,6 +6,7 @@ import { intentBlocked, type TxIntent } from "@/lib/vela/provider";
 import { priorityFeeSol, useVela } from "@/lib/vela/store";
 import { tokenBySymbol, walletTokens } from "@/lib/vela/tokens";
 import { AssetSheet } from "@/components/vela/asset-sheet";
+import { CardSkinSheet } from "@/components/vela/balance-card";
 import { AddWalletSheet, WalletsSheet } from "@/components/vela/wallets-sheet";
 import { DangerButton, GhostButton, Overlay, PrimaryButton, TokenMark } from "@/components/vela/ui";
 
@@ -19,6 +20,7 @@ export function Sheets() {
   if (sheet.kind === "connect") return <ConnectSheet dappId={sheet.dappId} next={sheet.next} />;
   if (sheet.kind === "wallets") return <WalletsSheet />;
   if (sheet.kind === "add-wallet") return <AddWalletSheet />;
+  if (sheet.kind === "card-skin") return <CardSkinSheet />;
   if (sheet.kind === "asset") return <AssetSheet key={sheet.token.mint} token={sheet.token} amount={sheet.amount} viewOnly={sheet.viewOnly} />;
   return null;
 }

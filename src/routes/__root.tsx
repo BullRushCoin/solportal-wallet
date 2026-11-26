@@ -3,6 +3,7 @@ import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { useEffect } from "react";
 import { installCrashReporter } from "@/lib/vela/crash-report";
+import { DEFAULT_CARD_SKIN_SRC } from "@/lib/vela/card-skins";
 import appCss from "../styles.css?url";
 
 const APP_NAME = "SolPortal";
@@ -23,6 +24,8 @@ export const Route = createRootRoute({
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
       { rel: "stylesheet", href: appCss },
+      // Default Home balance-card skin; the card itself loads eagerly with high fetch priority.
+      { rel: "preload", as: "image", type: "image/webp", href: DEFAULT_CARD_SKIN_SRC, fetchPriority: "high" },
       {
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap",

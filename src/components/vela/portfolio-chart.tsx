@@ -1,12 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatUsd } from "@/lib/vela/format";
-import { PORTFOLIO_RANGES, type PortfolioRange, type SeriesPoint } from "@/lib/vela/portfolio-history";
-
-type Holding = { mint: string; amount: number; price: number };
-
-const cache = new Map<string, { at: number; points: SeriesPoint[] }>();
-const TTL_MS = 120_000;
+import { PORTFOLIO_RANGES, type PortfolioRange } from "@/lib/vela/portfolio-history";
+import type { PortfolioHistory } from "@/lib/vela/use-portfolio-history";
 
 function label(t: number, range: PortfolioRange): string {
   const d = new Date(t);
@@ -16,60 +11,17 @@ function label(t: number, range: PortfolioRange): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-const RANGE_WORD: Record<PortfolioRange, string> = { "1D": "today", "1W": "past week", "1M": "past month", "1Y": "past year" };
-
-export function PortfolioChart({ holdings, total }: { holdings: Holding[]; total: number }) {
-  const [range, setRange] = useState<PortfolioRange>("1D");
-  const [points, setPoints] = useState<SeriesPoint[] | null>(null);
-
-  // Stable key: amounts rounded so live price ticks don't refetch history.
-  const param = useMemo(
-    () =>
-      holdings
-        .filter((item) => item.amount > 0)
-        .map((item) => `${item.mint}:${Number(item.amount.toPrecision(8))}:${Number(item.price.toPrecision(2))}`)
-        .sort()
-        .join(","),
-    [holdings],
-  );
-
-  useEffect(() => {
-    if (!param) {
-      setPoints([]);
-      return;
-    }
-    const key = `${range}|${param}`;
-    const hit = cache.get(key);
-    if (hit && Date.now() - hit.at < TTL_MS) {
-      setPoints(hit.points);
-      return;
-    }
-    setPoints(null);
-    const controller = new AbortController();
-    void fetch(`/api/portfolio-history?range=${range}&h=${encodeURIComponent(param)}`, { signal: controller.signal })
-      .then((res) => (res.ok ? (res.json() as Promise<{ points?: SeriesPoint[] }>) : { points: [] }))
-      .then((body) => {
-        const next = body.points ?? [];
-        if (next.length > 1) cache.set(key, { at: Date.now(), points: next });
-        setPoints(next);
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setPoints([]);
-      });
-    return () => controller.abort();
-  }, [range, param]);
-
-  const series = useMemo(() => {
-    if (!points || points.length < 2) return points ?? [];
-    const now = Date.now();
-    const lastT = points[points.length - 1]!.t;
-    return now > lastT ? [...points, { t: now, p: total }] : points;
-  }, [points, total]);
-
-  const first = series[0]?.p ?? null;
-  const delta = first !== null && series.length > 1 ? total - first : null;
-  const pct = delta !== null && first ? (delta / first) * 100 : null;
-  const up = (delta ?? 0) >= 0;
+/** Area chart + range tabs. History is fetched by `usePortfolioHistory` so the balance card can show the change line. */
+export function PortfolioChart({
+  history,
+  range,
+  onRange,
+}: {
+  history: PortfolioHistory;
+  range: PortfolioRange;
+  onRange: (range: PortfolioRange) => void;
+}) {
+  const { series, points, up } = history;
   const values = series.map((point) => point.p);
   const lo = values.length ? Math.min(...values) : 0;
   const hi = values.length ? Math.max(...values) : 0;
@@ -78,14 +30,7 @@ export function PortfolioChart({ holdings, total }: { holdings: Holding[]; total
 
   return (
     <div className="mt-4">
-      <p className={`text-sm tabular-nums ${delta === null ? "text-muted" : up ? "text-accent" : "text-danger"}`}>
-        {delta === null
-          ? points === null
-            ? "Loading history…"
-            : "History unavailable right now"
-          : `${up ? "+" : "−"}${formatUsd(Math.abs(delta))} (${up ? "+" : "−"}${Math.abs(pct ?? 0).toFixed(2)}%) ${RANGE_WORD[range]}`}
-      </p>
-      <div className="mt-2 h-36">
+      <div className="h-32">
         {series.length > 1 ? (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={series} margin={{ top: 6, right: 0, bottom: 0, left: 0 }}>
@@ -121,7 +66,7 @@ export function PortfolioChart({ holdings, total }: { holdings: Holding[]; total
           <button
             key={item}
             type="button"
-            onClick={() => setRange(item)}
+            onClick={() => onRange(item)}
             className={`h-8 flex-1 rounded-full font-mono text-xs ${
               range === item ? "bg-accent text-on-accent" : "border border-line text-muted"
             }`}

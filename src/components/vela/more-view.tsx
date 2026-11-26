@@ -18,6 +18,7 @@ import {
   LifeBuoy,
   Link2,
   MessageCircle,
+  Palette,
   ShieldCheck,
   Sparkles,
   Trash2,
@@ -26,6 +27,7 @@ import {
 import { formatAmt, formatUsd, shortAddr } from "@/lib/vela/format";
 import { type TxIntent } from "@/lib/vela/provider";
 import { priorityFeeSol, useVela, type Priority } from "@/lib/vela/store";
+import { resolveCardSkin } from "@/lib/vela/card-skins";
 import { holdingsUsd, tokenBySymbol, tokenLookup } from "@/lib/vela/tokens";
 import { useMarket } from "@/lib/vela/use-market";
 import { ActivityView } from "@/components/vela/activity-view";
@@ -73,6 +75,7 @@ function MoreRoot() {
   const pro = useVela((state) => state.pro);
   const priority = useVela((state) => state.priority);
   const resetWallet = useVela((state) => state.resetWallet);
+  const cardSkinName = useVela((state) => resolveCardSkin(state.cardSkins, state.activeAccountId).name);
   const watchAddress = useVela((state) => state.watchAddress);
   const accounts = useVela((state) => state.accounts);
   const activity = useVela((state) => state.activity);
@@ -144,6 +147,7 @@ function MoreRoot() {
           <SettingsRow icon={Link2} tone="blue" title="Connected sites" subtitle="Permissions granted in Explore" value={connected.length || "None"} onClick={() => setMore("sites")} />
           <SettingsRow icon={Eye} tone="cyan" title="Watch a wallet" subtitle={watchAddress ? `Watching ${shortAddr(watchAddress)}` : "Live holdings for any public address"} onClick={() => setMore("watch")} />
           <SettingsRow icon={WalletCards} tone="slate" title="Manage wallets" subtitle="Switch, add, rename, or remove" value={accounts.length || undefined} onClick={() => setSheet({ kind: "wallets" })} />
+          <SettingsRow icon={Palette} tone="gold" title="Card style" subtitle="Artwork behind your Home balance" value={cardSkinName} onClick={() => setSheet({ kind: "card-skin" })} />
         </SettingsGroup>
 
         <SettingsGroup title="Earn & Buy">

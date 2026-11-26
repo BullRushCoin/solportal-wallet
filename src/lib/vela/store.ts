@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { GLOBAL_SKIN_KEY, type CardSkinId } from "@/lib/vela/card-skins";
 import { addressFromPhrase, fakeSignature, randomAddress } from "@/lib/vela/crypto";
 import { dappById } from "@/lib/vela/dapps";
 import { uid } from "@/lib/vela/format";
@@ -101,6 +102,7 @@ export type Sheet =
   | { kind: "url" }
   | { kind: "wallets" }
   | { kind: "add-wallet" }
+  | { kind: "card-skin" }
   | { kind: "asset"; token: AssetSheetToken; amount: number; viewOnly?: boolean };
 
 export type AccountKind = WalletMode | "watch";
@@ -164,6 +166,8 @@ type Persisted = {
   watchlist: WatchItem[];
   /** Tokens learned at runtime (e.g. bought by mint in Swap). Metadata only; shared by every wallet. */
   customTokens: CustomToken[];
+  /** Balance-card skin per account id (GLOBAL_SKIN_KEY when no account). */
+  cardSkins: Record<string, CardSkinId>;
 };
 
 type Ephemeral = {
@@ -210,6 +214,7 @@ type Actions = {
   toggleWatch: (item: Omit<WatchItem, "addedAt">) => void;
   /** Refresh USD prices of runtime tokens from /api/prices. */
   refreshCustomPrices: () => Promise<void>;
+  setCardSkin: (skin: CardSkinId) => void;
 };
 
 /** Register a runtime token; returns its holdings key (reuses an existing key for the same mint). */
@@ -336,6 +341,7 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
       incineratedMints: [],
       watchlist: [],
       customTokens: [],
+      cardSkins: {},
       hydrated: false,
       tab: "home",
       more: "root",
@@ -347,6 +353,11 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
       swapPrefill: null,
 
       setHydrated: (hydrated) => set({ hydrated }),
+      setCardSkin: (skin) =>
+        set((state) => ({
+          // Remember per wallet, and as the global fallback for wallets that never picked one.
+          cardSkins: { ...state.cardSkins, [GLOBAL_SKIN_KEY]: skin, ...(state.activeAccountId ? { [state.activeAccountId]: skin } : {}) },
+        })),
       setTab: (tab) => set({ tab, more: tab === "more" ? get().more : "root" }),
       setMore: (more) => set({ more, tab: "more" }),
       setSheet: (sheet) => set({ sheet }),
@@ -820,6 +831,7 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
         incineratedMints: state.incineratedMints,
         watchlist: state.watchlist,
         customTokens: state.customTokens,
+        cardSkins: state.cardSkins,
       }),
       merge: (persisted, current) => {
         const saved = (persisted ?? {}) as Partial<Persisted>;
@@ -860,6 +872,7 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
           incineratedMints: saved.incineratedMints ?? [],
           watchlist: Array.isArray(saved.watchlist) ? saved.watchlist : [],
           customTokens,
+          cardSkins: saved.cardSkins && typeof saved.cardSkins === "object" ? saved.cardSkins : {},
         };
       },
     },

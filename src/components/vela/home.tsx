@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, ChevronDown, Copy, CreditCard, Search, X } from "lucide-react";
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CreditCard, Search, X } from "lucide-react";
 import { isSolanaAddress } from "@/lib/vela/address";
 import { formatAmt, formatChangePct, formatUsd, shortAddr } from "@/lib/vela/format";
 import type { FungibleHolding, NftHolding, WatchedWallet } from "@/lib/vela/helius-parse";
@@ -7,10 +7,12 @@ import { useVela } from "@/lib/vela/store";
 import { holdingValueUsd, isDeadCoin } from "@/lib/vela/incinerator";
 import { customTokenLookup, holdingsUsd, tokenLookup, walletTokens } from "@/lib/vela/tokens";
 import { useMarket } from "@/lib/vela/use-market";
-import { SectionLabel, TokenMark, Mark } from "@/components/vela/ui";
+import { SectionLabel, TokenMark } from "@/components/vela/ui";
 import { Sparkline } from "@/components/vela/sparkline";
-import { AccountAvatar } from "@/components/vela/wallets-sheet";
 import { PortfolioChart } from "@/components/vela/portfolio-chart";
+import { BalanceCard } from "@/components/vela/balance-card";
+import type { PortfolioRange } from "@/lib/vela/portfolio-history";
+import { describeChange, usePortfolioHistory } from "@/lib/vela/use-portfolio-history";
 import { IncineratorCard } from "@/components/vela/incinerator-card";
 
 export function HomeView() {
@@ -47,6 +49,8 @@ function SandboxHome() {
         }),
     [holdings, prices],
   );
+  const [range, setRange] = useState<PortfolioRange>("1D");
+  const history = usePortfolioHistory(chartHoldings, total, range);
   const [query, setQuery] = useState("");
   const heldRows = walletTokens().filter((token) => {
     const amount = holdings[token.symbol] ?? 0;
@@ -60,21 +64,20 @@ function SandboxHome() {
 
   return (
     <div className="px-5 pt-5 pb-6">
-      <HomeHeader
+      <BalanceCard
         label="Sandbox · nothing broadcasts"
         address={wallet?.address ?? null}
-        copyHint="Simulated address copied. Do not send real funds."
         onCopy={() => {
           if (!wallet) return;
           void navigator.clipboard?.writeText(wallet.address);
           setToast("Simulated address copied. Do not send real funds.");
         }}
+        amount={formatUsd(total)}
+        change={total > 0 ? describeChange(history, range) : null}
       />
 
-      <p className="mt-8 font-mono text-xs tracking-widest text-muted uppercase">Portfolio</p>
-      <p className="mt-1 text-5xl font-semibold tracking-tight tabular-nums">{formatUsd(total)}</p>
       {total > 0 ? (
-        <PortfolioChart holdings={chartHoldings} total={total} />
+        <PortfolioChart history={history} range={range} onRange={setRange} />
       ) : (
         <button className="mt-3 text-sm text-accent" onClick={restoreSandbox}>
           Restore sandbox balances
@@ -197,39 +200,42 @@ function WatchedHome({ address }: { address: string }) {
   const [query, setQuery] = useState("");
   const heldRows = allRows.filter((token) => !isDeadCoin({ symbol: token.symbol, mint: token.mint, amount: token.amount, valueUsd: token.valueUsd }));
   const rows = heldRows.filter((token) => matchesQuery(query, token));
+  const totalUsd = data?.totalUsd ?? null;
+  const chartHoldings = useMemo(
+    () => (data ? allRows.map((row) => ({ mint: row.mint, amount: row.amount, price: row.priceUsd ?? 0 })) : []),
+    // allRows is derived from data only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data],
+  );
+  const [range, setRange] = useState<PortfolioRange>("1D");
+  const history = usePortfolioHistory(totalUsd ? chartHoldings : [], totalUsd ?? 0, range);
+  const showChart = !loading && !error && Boolean(totalUsd);
 
   return (
     <div className="px-5 pt-5 pb-6">
-      <HomeHeader
+      <BalanceCard
         label="Watch only · no keys · nothing broadcasts"
         address={address}
-        copyHint="Public address copied."
         onCopy={() => {
           void navigator.clipboard?.writeText(address);
           setToast("Public address copied.");
         }}
+        amount={loading ? "…" : error ? "—" : totalUsd !== null ? formatUsd(totalUsd) : "—"}
+        change={
+          loading
+            ? { text: "Loading live holdings…", up: null }
+            : error
+              ? null
+              : showChart
+                ? describeChange(history, range)
+                : { text: "USD when price data is available", up: null }
+        }
       />
+      {error ? <p className="mt-3 text-sm text-danger">{error}</p> : null}
 
       <WatchBanner address={address} />
 
-      <p className="mt-6 font-mono text-xs tracking-widest text-muted uppercase">Portfolio</p>
-      {loading ? <p className="mt-3 text-sm text-muted">Loading live holdings…</p> : null}
-      {error ? <p className="mt-3 text-sm text-danger">{error}</p> : null}
-      {!loading && !error ? (
-        <>
-          <p className="mt-1 text-5xl font-semibold tracking-tight tabular-nums">
-            {data?.totalUsd !== null && data?.totalUsd !== undefined ? formatUsd(data.totalUsd) : "—"}
-          </p>
-          {data?.totalUsd ? (
-            <PortfolioChart
-              holdings={allRows.map((row) => ({ mint: row.mint, amount: row.amount, price: row.priceUsd ?? 0 }))}
-              total={data.totalUsd}
-            />
-          ) : (
-            <p className="mt-2 text-sm text-muted">Live on-chain balances · USD when price data is available</p>
-          )}
-        </>
-      ) : null}
+      {showChart ? <PortfolioChart history={history} range={range} onRange={setRange} /> : null}
 
       <div className="mt-6 rounded-card border border-line bg-surface p-4 text-sm text-pretty text-muted">
         View only. Send, swap, and stake stay in the sandbox
@@ -413,47 +419,6 @@ function WatchBanner({ address }: { address: string }) {
         Back to sandbox
       </button>
     </div>
-  );
-}
-
-function HomeHeader({
-  label,
-  address,
-  onCopy,
-}: {
-  label: string;
-  address: string | null;
-  copyHint?: string;
-  onCopy: () => void;
-}) {
-  const setSheet = useVela((state) => state.setSheet);
-  const activeAccount = useVela((state) => state.accounts.find((account) => account.id === state.activeAccountId) ?? null);
-  return (
-    <header className="flex items-center justify-between gap-3">
-      <button
-        type="button"
-        className="flex min-w-0 items-center gap-2 text-left"
-        onClick={() => setSheet({ kind: "wallets" })}
-        aria-label="My wallets"
-      >
-        {activeAccount ? <AccountAvatar name={activeAccount.name} active size="sm" /> : <Mark className="size-9" />}
-        <div className="min-w-0">
-          <p className="flex items-center gap-1 text-sm font-semibold tracking-wide">
-            <span className="truncate">{activeAccount?.name ?? "SolPortal"}</span>
-            <ChevronDown className="size-3.5 shrink-0 text-muted" />
-          </p>
-          <p className="truncate font-mono text-xs text-muted">{label}</p>
-        </div>
-      </button>
-      <button
-        className="inline-flex h-11 items-center gap-2 rounded-full border border-line bg-surface px-3 font-mono text-xs"
-        onClick={onCopy}
-        disabled={!address}
-      >
-        {address ? shortAddr(address) : "—"}
-        <Copy className="size-3.5 text-muted" />
-      </button>
-    </header>
   );
 }
 
