@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronDown, Copy, Eye, KeyRound, MoreVertical, Plus, Sparkles } from "lucide-react";
 import { isSolanaAddress } from "@/lib/vela/address";
-import { generatePhrase, parseSandboxPhrase } from "@/lib/vela/crypto";
+import { WORDLIST, generatePhrase, parseSandboxPhrase } from "@/lib/vela/crypto";
 import { formatUsd, shortAddr } from "@/lib/vela/format";
 import { useVela, type Account } from "@/lib/vela/store";
 import { holdingsUsd } from "@/lib/vela/tokens";
@@ -244,7 +244,28 @@ function AccountRow({
   );
 }
 
-type AddStep = "menu" | "import" | "watch";
+type AddStep = "menu" | "phrase" | "verify" | "import" | "watch";
+
+type QuizItem = { index: number; answer: string; options: string[] };
+
+function shuffle<T>(items: T[]): T[] {
+  const next = [...items];
+  for (let i = next.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [next[i], next[j]] = [next[j]!, next[i]!];
+  }
+  return next;
+}
+
+/** Three random positions, each with the right word and three decoys not in the phrase. */
+function buildQuiz(phrase: string[]): QuizItem[] {
+  const positions = shuffle(phrase.map((_, index) => index)).slice(0, 3).sort((a, b) => a - b);
+  const pool = WORDLIST.filter((word) => !phrase.includes(word));
+  return positions.map((index) => {
+    const answer = phrase[index]!;
+    return { index, answer, options: shuffle([answer, ...shuffle(pool).slice(0, 3)]) };
+  });
+}
 
 export function AddWalletSheet() {
   const setSheet = useVela((state) => state.setSheet);
@@ -257,17 +278,43 @@ export function AddWalletSheet() {
   const [ack, setAck] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [phrase, setPhrase] = useState<string[]>([]);
+  const [quiz, setQuiz] = useState<QuizItem[]>([]);
+  const [round, setRound] = useState(0);
+  const [saved, setSaved] = useState(false);
 
   const back = () => {
     setError("");
     if (step === "menu") setSheet({ kind: "wallets" });
+    else if (step === "verify") setStep("phrase");
     else setStep("menu");
   };
 
-  async function createNew() {
+  function startCreate() {
+    const words = generatePhrase();
+    setPhrase(words);
+    setQuiz(buildQuiz(words));
+    setRound(0);
+    setSaved(false);
+    setError("");
+    setStep("phrase");
+  }
+
+  async function pick(option: string) {
+    const current = quiz[round];
+    if (!current || busy) return;
+    if (option !== current.answer) {
+      setError(`Word #${current.index + 1} doesn't match. Go back and check your phrase.`);
+      return;
+    }
+    setError("");
+    if (round + 1 < quiz.length) {
+      setRound(round + 1);
+      return;
+    }
     setBusy(true);
-    await createWallet("seed", generatePhrase(), name);
-    setToast("New sandbox wallet created");
+    await createWallet("seed", phrase, name);
+    setToast("Phrase verified. New wallet created");
     setBusy(false);
   }
 
@@ -311,9 +358,64 @@ export function AddWalletSheet() {
 
       {step === "menu" ? (
         <div className="mt-4 space-y-2">
-          <Option icon={<Sparkles className="size-5" />} title="Create new wallet" detail="Fresh sandbox wallet with a new recovery phrase" onClick={() => void createNew()} disabled={busy} />
+          <Option icon={<Sparkles className="size-5" />} title="Create new wallet" detail="Fresh sandbox wallet with a new recovery phrase" onClick={startCreate} />
           <Option icon={<KeyRound className="size-5" />} title="Import recovery phrase" detail="12 sandbox words. Never a real phrase." onClick={() => { setText(""); setStep("import"); }} />
           <Option icon={<Eye className="size-5" />} title="Watch an address" detail="Track any Solana wallet, read-only" onClick={() => { setText(""); setStep("watch"); }} />
+        </div>
+      ) : null}
+
+      {step === "phrase" ? (
+        <div className="mt-4">
+          <p className="font-semibold">Your recovery phrase</p>
+          <p className="mt-1 text-sm text-pretty text-muted">
+            Write these 12 words down in order and keep them offline. You'll confirm a few next. Sandbox words only, they control no real funds.
+          </p>
+          <ol className="mt-3 grid grid-cols-2 gap-2">
+            {phrase.map((word, index) => (
+              <li key={`${word}-${index}`} className="flex items-baseline gap-2 rounded-control border border-line bg-bg px-3 py-2">
+                <span className="w-5 font-mono text-xs text-muted">{index + 1}</span>
+                <span className="font-medium">{word}</span>
+              </li>
+            ))}
+          </ol>
+          <label className="mt-4 flex items-start gap-3 text-sm">
+            <input type="checkbox" checked={saved} onChange={(event) => setSaved(event.target.checked)} className="mt-1 size-4 accent-accent" />
+            I wrote down my recovery phrase.
+          </label>
+          <div className="mt-4">
+            <PrimaryButton
+              disabled={!saved}
+              onClick={() => {
+                setRound(0);
+                setError("");
+                setStep("verify");
+              }}
+            >
+              Verify phrase
+            </PrimaryButton>
+          </div>
+        </div>
+      ) : null}
+
+      {step === "verify" && quiz[round] ? (
+        <div className="mt-4">
+          <p className="font-mono text-xs tracking-widest text-muted uppercase">
+            Check {round + 1} of {quiz.length}
+          </p>
+          <p className="mt-1 text-2xl font-semibold">Select word #{quiz[round].index + 1}</p>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            {quiz[round].options.map((option) => (
+              <button
+                key={option}
+                type="button"
+                disabled={busy}
+                onClick={() => void pick(option)}
+                className="h-12 rounded-control border border-line bg-surface-2 font-medium"
+              >
+                {option}
+              </button>
+            ))}
+          </div>
         </div>
       ) : null}
 
