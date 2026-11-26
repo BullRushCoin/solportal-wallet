@@ -5,6 +5,7 @@ import { formatAmt, formatUsd, shortAddr } from "@/lib/vela/format";
 import { type TxIntent } from "@/lib/vela/provider";
 import { priorityFeeSol, useVela, type MoreRoute, type Priority } from "@/lib/vela/store";
 import { holdingsUsd, tokenBySymbol } from "@/lib/vela/tokens";
+import { ActivityView } from "@/components/vela/activity-view";
 import { Blueprint } from "@/components/vela/blueprint";
 import { GhostButton, PrimaryButton, SectionLabel } from "@/components/vela/ui";
 import { Collectibles } from "@/components/vela/home";
@@ -24,6 +25,7 @@ export function MoreView() {
   const resetWallet = useVela((state) => state.resetWallet);
   const watchAddress = useVela((state) => state.watchAddress);
 
+  if (more === "activity") return <ActivityPage />;
   if (more === "stake") return <StakeView />;
   if (more === "watch") return <WatchWalletPage />;
   if (more === "collectibles") return <CollectiblesPage />;
@@ -35,6 +37,7 @@ export function MoreView() {
   if (more === "support") return <SupportPage />;
 
   const rows: Array<{ id: MoreRoute; title: string; detail: string }> = [
+    { id: "activity", title: "Activity", detail: "Swaps, dApps, fiat, stake, and burns" },
     { id: "stake", title: "Stake", detail: "SOL into JitoSOL, mSOL, or bSOL" },
     { id: "watch", title: "Watch a wallet", detail: watchAddress ? `Watching ${shortAddr(watchAddress)}` : "Live holdings for any public address" },
     { id: "collectibles", title: "Collectibles", detail: "NFTs for this wallet" },
@@ -83,6 +86,20 @@ function Back({ title }: { title: string }) {
         Back
       </button>
       <h1 className="text-2xl font-semibold">{title}</h1>
+    </div>
+  );
+}
+
+function ActivityPage() {
+  const setMore = useVela((state) => state.setMore);
+  return (
+    <div>
+      <div className="px-5 pt-5">
+        <button className="h-11 px-1 text-sm text-muted" onClick={() => setMore("root")}>
+          Back
+        </button>
+      </div>
+      <ActivityView />
     </div>
   );
 }

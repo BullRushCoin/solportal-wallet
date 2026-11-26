@@ -5,6 +5,7 @@ import { Area, AreaChart, ReferenceDot, ResponsiveContainer, Tooltip, XAxis, YAx
 import { formatAmt, formatChangePct, formatUsd } from "@/lib/vela/format";
 import { useVela, type AssetSheetToken } from "@/lib/vela/store";
 import { Overlay, TokenMark } from "@/components/vela/ui";
+import { WatchStar } from "@/components/vela/watch-star";
 
 type Range = "1H" | "1D" | "1W";
 type Point = { t: number; p: number };
@@ -142,6 +143,12 @@ export function AssetSheet({ token, amount, viewOnly }: { token: AssetSheetToken
             <span className={up ? "text-accent" : "text-danger"}>{formatChangePct(change24h)}</span>
           ) : null}
         </p>
+        <span className="-mr-2">
+          <WatchStar
+            size="sm"
+            item={{ mint: token.mint, symbol: token.symbol, name: token.name, decimals: token.decimals, image: token.image ?? null }}
+          />
+        </span>
       </div>
 
       <p

@@ -15,9 +15,11 @@ import { Route as ApiFrameCheckRouteImport } from './routes/api/frame-check'
 import { Route as ApiHistoryRouteImport } from './routes/api/history'
 import { Route as ApiIncineratorRouteImport } from './routes/api/incinerator'
 import { Route as ApiMarketRouteImport } from './routes/api/market'
+import { Route as ApiMemecoinsRouteImport } from './routes/api/memecoins'
 import { Route as ApiNewsRouteImport } from './routes/api/news'
 import { Route as ApiPortfolioHistoryRouteImport } from './routes/api/portfolio-history'
 import { Route as ApiPriceRouteImport } from './routes/api/price'
+import { Route as ApiPricesRouteImport } from './routes/api/prices'
 import { Route as ApiStakeRouteImport } from './routes/api/stake'
 import { Route as ApiStakeWalletRouteImport } from './routes/api/stake-wallet'
 import { Route as ApiSupportRouteImport } from './routes/api/support'
@@ -55,6 +57,11 @@ const ApiMarketRoute = ApiMarketRouteImport.update({
   path: '/api/market',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMemecoinsRoute = ApiMemecoinsRouteImport.update({
+  id: '/api/memecoins',
+  path: '/api/memecoins',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiNewsRoute = ApiNewsRouteImport.update({
   id: '/api/news',
   path: '/api/news',
@@ -68,6 +75,11 @@ const ApiPortfolioHistoryRoute = ApiPortfolioHistoryRouteImport.update({
 const ApiPriceRoute = ApiPriceRouteImport.update({
   id: '/api/price',
   path: '/api/price',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPricesRoute = ApiPricesRouteImport.update({
+  id: '/api/prices',
+  path: '/api/prices',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiStakeRoute = ApiStakeRouteImport.update({
@@ -108,9 +120,11 @@ export interface FileRoutesByFullPath {
   '/api/history': typeof ApiHistoryRoute
   '/api/incinerator': typeof ApiIncineratorRoute
   '/api/market': typeof ApiMarketRoute
+  '/api/memecoins': typeof ApiMemecoinsRoute
   '/api/news': typeof ApiNewsRoute
   '/api/portfolio-history': typeof ApiPortfolioHistoryRoute
   '/api/price': typeof ApiPriceRoute
+  '/api/prices': typeof ApiPricesRoute
   '/api/stake': typeof ApiStakeRoute
   '/api/stake-wallet': typeof ApiStakeWalletRoute
   '/api/support': typeof ApiSupportRoute
@@ -125,9 +139,11 @@ export interface FileRoutesByTo {
   '/api/history': typeof ApiHistoryRoute
   '/api/incinerator': typeof ApiIncineratorRoute
   '/api/market': typeof ApiMarketRoute
+  '/api/memecoins': typeof ApiMemecoinsRoute
   '/api/news': typeof ApiNewsRoute
   '/api/portfolio-history': typeof ApiPortfolioHistoryRoute
   '/api/price': typeof ApiPriceRoute
+  '/api/prices': typeof ApiPricesRoute
   '/api/stake': typeof ApiStakeRoute
   '/api/stake-wallet': typeof ApiStakeWalletRoute
   '/api/support': typeof ApiSupportRoute
@@ -143,9 +159,11 @@ export interface FileRoutesById {
   '/api/history': typeof ApiHistoryRoute
   '/api/incinerator': typeof ApiIncineratorRoute
   '/api/market': typeof ApiMarketRoute
+  '/api/memecoins': typeof ApiMemecoinsRoute
   '/api/news': typeof ApiNewsRoute
   '/api/portfolio-history': typeof ApiPortfolioHistoryRoute
   '/api/price': typeof ApiPriceRoute
+  '/api/prices': typeof ApiPricesRoute
   '/api/stake': typeof ApiStakeRoute
   '/api/stake-wallet': typeof ApiStakeWalletRoute
   '/api/support': typeof ApiSupportRoute
@@ -162,9 +180,11 @@ export interface FileRouteTypes {
     | '/api/history'
     | '/api/incinerator'
     | '/api/market'
+    | '/api/memecoins'
     | '/api/news'
     | '/api/portfolio-history'
     | '/api/price'
+    | '/api/prices'
     | '/api/stake'
     | '/api/stake-wallet'
     | '/api/support'
@@ -179,9 +199,11 @@ export interface FileRouteTypes {
     | '/api/history'
     | '/api/incinerator'
     | '/api/market'
+    | '/api/memecoins'
     | '/api/news'
     | '/api/portfolio-history'
     | '/api/price'
+    | '/api/prices'
     | '/api/stake'
     | '/api/stake-wallet'
     | '/api/support'
@@ -196,9 +218,11 @@ export interface FileRouteTypes {
     | '/api/history'
     | '/api/incinerator'
     | '/api/market'
+    | '/api/memecoins'
     | '/api/news'
     | '/api/portfolio-history'
     | '/api/price'
+    | '/api/prices'
     | '/api/stake'
     | '/api/stake-wallet'
     | '/api/support'
@@ -214,9 +238,11 @@ export interface RootRouteChildren {
   ApiHistoryRoute: typeof ApiHistoryRoute
   ApiIncineratorRoute: typeof ApiIncineratorRoute
   ApiMarketRoute: typeof ApiMarketRoute
+  ApiMemecoinsRoute: typeof ApiMemecoinsRoute
   ApiNewsRoute: typeof ApiNewsRoute
   ApiPortfolioHistoryRoute: typeof ApiPortfolioHistoryRoute
   ApiPriceRoute: typeof ApiPriceRoute
+  ApiPricesRoute: typeof ApiPricesRoute
   ApiStakeRoute: typeof ApiStakeRoute
   ApiStakeWalletRoute: typeof ApiStakeWalletRoute
   ApiSupportRoute: typeof ApiSupportRoute
@@ -269,6 +295,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMarketRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/memecoins': {
+      id: '/api/memecoins'
+      path: '/api/memecoins'
+      fullPath: '/api/memecoins'
+      preLoaderRoute: typeof ApiMemecoinsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/news': {
       id: '/api/news'
       path: '/api/news'
@@ -288,6 +321,13 @@ declare module '@tanstack/react-router' {
       path: '/api/price'
       fullPath: '/api/price'
       preLoaderRoute: typeof ApiPriceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/prices': {
+      id: '/api/prices'
+      path: '/api/prices'
+      fullPath: '/api/prices'
+      preLoaderRoute: typeof ApiPricesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/stake': {
@@ -342,9 +382,11 @@ const rootRouteChildren: RootRouteChildren = {
   ApiHistoryRoute: ApiHistoryRoute,
   ApiIncineratorRoute: ApiIncineratorRoute,
   ApiMarketRoute: ApiMarketRoute,
+  ApiMemecoinsRoute: ApiMemecoinsRoute,
   ApiNewsRoute: ApiNewsRoute,
   ApiPortfolioHistoryRoute: ApiPortfolioHistoryRoute,
   ApiPriceRoute: ApiPriceRoute,
+  ApiPricesRoute: ApiPricesRoute,
   ApiStakeRoute: ApiStakeRoute,
   ApiStakeWalletRoute: ApiStakeWalletRoute,
   ApiSupportRoute: ApiSupportRoute,

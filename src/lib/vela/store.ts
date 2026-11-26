@@ -48,8 +48,8 @@ export type Revenue = {
   onrampRevUsd: number;
 };
 
-export type Tab = "home" | "explore" | "swap" | "activity" | "more";
-export type MoreRoute = "root" | "stake" | "buy" | "sites" | "pro" | "security" | "blueprint" | "collectibles" | "watch" | "support";
+export type Tab = "home" | "explore" | "swap" | "market" | "more";
+export type MoreRoute = "root" | "activity" | "stake" | "buy" | "sites" | "pro" | "security" | "blueprint" | "collectibles" | "watch" | "support";
 export type Priority = "low" | "fast" | "protect";
 
 export type BrowserState = {
@@ -104,6 +104,16 @@ export type Account = {
   createdAt: number;
 };
 
+/** A starred coin. Shared by every wallet in this browser; prices are fetched live. */
+export type WatchItem = {
+  mint: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  image: string | null;
+  addedAt: number;
+};
+
 export type AssetSheetToken = {
   symbol: string;
   name: string;
@@ -130,6 +140,7 @@ type Persisted = {
   customRpc: string;
   nativeStakes: NativeStakePosition[];
   incineratedMints: string[];
+  watchlist: WatchItem[];
 };
 
 type Ephemeral = {
@@ -173,6 +184,7 @@ type Actions = {
   setWatchAddress: (address: string | null) => void;
   openSwap: (from?: string | SwapPrefill) => void;
   clearSwapPrefill: () => void;
+  toggleWatch: (item: Omit<WatchItem, "addedAt">) => void;
 };
 
 const EMPTY_REVENUE: Revenue = { swapFeesUsd: 0, stakeRevUsd: 0, onrampRevUsd: 0 };
@@ -284,6 +296,7 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
       customRpc: "https://mainnet.helius-rpc.com/?api-key=YOUR_KEY",
       nativeStakes: [],
       incineratedMints: [],
+      watchlist: [],
       hydrated: false,
       tab: "home",
       more: "root",
@@ -711,6 +724,15 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
         });
       },
       clearSwapPrefill: () => set({ swapPrefill: null }),
+
+      toggleWatch: (item) => {
+        const list = get().watchlist;
+        const exists = list.some((entry) => entry.mint === item.mint);
+        set({
+          watchlist: exists ? list.filter((entry) => entry.mint !== item.mint) : [{ ...item, addedAt: Date.now() }, ...list].slice(0, 100),
+          toast: exists ? `Removed ${item.symbol} from watchlist` : `Added ${item.symbol} to watchlist`,
+        });
+      },
     }),
     {
       name: "vela-sandbox-v1",
@@ -732,6 +754,7 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
         customRpc: state.customRpc,
         nativeStakes: state.nativeStakes,
         incineratedMints: state.incineratedMints,
+        watchlist: state.watchlist,
       }),
       merge: (persisted, current) => {
         const saved = (persisted ?? {}) as Partial<Persisted>;
@@ -768,6 +791,7 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
           watchAddress: active?.kind === "watch" ? active.address : null,
           holdings,
           incineratedMints: saved.incineratedMints ?? [],
+          watchlist: Array.isArray(saved.watchlist) ? saved.watchlist : [],
         };
       },
     },

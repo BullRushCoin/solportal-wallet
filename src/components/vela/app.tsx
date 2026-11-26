@@ -1,10 +1,10 @@
 import { useEffect } from "react";
-import { Clock, Compass, Ellipsis, ArrowLeftRight, Wallet } from "lucide-react";
-import { ActivityView } from "@/components/vela/activity-view";
+import { BarChart3, Compass, Ellipsis, ArrowLeftRight, Wallet } from "lucide-react";
 import { Blueprint } from "@/components/vela/blueprint";
 import { BrowserView } from "@/components/vela/browser-view";
 import { ExploreView } from "@/components/vela/explore-view";
 import { HomeView } from "@/components/vela/home";
+import { MarketView } from "@/components/vela/market-view";
 import { MoreView } from "@/components/vela/more-view";
 import { Onboarding } from "@/components/vela/onboarding";
 import { Sheets } from "@/components/vela/sheets";
@@ -15,7 +15,7 @@ const TABS: Array<{ id: Tab; label: string; icon: typeof Wallet }> = [
   { id: "home", label: "Home", icon: Wallet },
   { id: "explore", label: "Explore", icon: Compass },
   { id: "swap", label: "Swap", icon: ArrowLeftRight },
-  { id: "activity", label: "Activity", icon: Clock },
+  { id: "market", label: "Market", icon: BarChart3 },
   { id: "more", label: "More", icon: Ellipsis },
 ];
 
@@ -65,7 +65,7 @@ function WalletBody({ tab }: { tab: Tab }) {
   if (tab === "home") return <HomeView />;
   if (tab === "explore") return <ExploreView />;
   if (tab === "swap") return <SwapView />;
-  if (tab === "activity") return <ActivityView />;
+  if (tab === "market") return <MarketView />;
   return <MoreView />;
 }
 
