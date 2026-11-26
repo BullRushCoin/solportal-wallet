@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, ChevronDown, Copy, Landmark, Search, X } from "lucide-react";
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, ChevronDown, Copy, CreditCard, Search, X } from "lucide-react";
 import { isSolanaAddress } from "@/lib/vela/address";
 import { formatAmt, formatChangePct, formatUsd, shortAddr } from "@/lib/vela/format";
 import type { FungibleHolding, NftHolding, WatchedWallet } from "@/lib/vela/helius-parse";
@@ -78,7 +78,7 @@ function SandboxHome() {
         <Quick icon={<ArrowUpRight className="size-4" />} label="Send" onClick={() => setSheet({ kind: "send" })} />
         <Quick icon={<ArrowDownLeft className="size-4" />} label="Receive" onClick={() => setSheet({ kind: "receive" })} />
         <Quick icon={<ArrowLeftRight className="size-4" />} label="Swap" onClick={() => openSwap()} />
-        <Quick icon={<Landmark className="size-4" />} label="Stake" onClick={() => setMore("stake")} />
+        <Quick icon={<CreditCard className="size-4" />} label="Buy Crypto" onClick={() => setMore("buy")} />
       </div>
 
       <div className="mt-8 flex items-end justify-between">
@@ -233,7 +233,7 @@ function WatchedHome({ address }: { address: string }) {
         <Quick icon={<ArrowUpRight className="size-4" />} label="Send" onClick={() => setSheet({ kind: "send" })} />
         <Quick icon={<ArrowDownLeft className="size-4" />} label="Receive" onClick={() => setSheet({ kind: "receive" })} />
         <Quick icon={<ArrowLeftRight className="size-4" />} label="Swap" onClick={() => openSwap()} />
-        <Quick icon={<Landmark className="size-4" />} label="Stake" onClick={() => setMore("stake")} />
+        <Quick icon={<CreditCard className="size-4" />} label="Buy Crypto" onClick={() => setMore("buy")} />
       </div>
 
       <div className="mt-8 flex items-end justify-between">
@@ -538,7 +538,7 @@ function Quick({ icon, label, onClick }: { icon: ReactNode; label: string; onCli
   return (
     <button onClick={onClick} className="flex flex-col items-center gap-2">
       <span className="grid size-11 place-items-center rounded-full border border-line bg-surface text-fg">{icon}</span>
-      <span className="text-xs text-muted">{label}</span>
+      <span className="text-xs whitespace-nowrap text-muted">{label}</span>
     </button>
   );
 }
