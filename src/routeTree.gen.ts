@@ -20,11 +20,13 @@ import { Route as ApiNewsRouteImport } from './routes/api/news'
 import { Route as ApiPortfolioHistoryRouteImport } from './routes/api/portfolio-history'
 import { Route as ApiPriceRouteImport } from './routes/api/price'
 import { Route as ApiPricesRouteImport } from './routes/api/prices'
+import { Route as ApiQuoteRouteImport } from './routes/api/quote'
 import { Route as ApiStakeRouteImport } from './routes/api/stake'
 import { Route as ApiStakeWalletRouteImport } from './routes/api/stake-wallet'
 import { Route as ApiSupportRouteImport } from './routes/api/support'
 import { Route as ApiTokenRouteImport } from './routes/api/token'
 import { Route as ApiTokenLinksRouteImport } from './routes/api/token-links'
+import { Route as ApiTokenSearchRouteImport } from './routes/api/token-search'
 import { Route as ApiWalletRouteImport } from './routes/api/wallet'
 
 const IndexRoute = IndexRouteImport.update({
@@ -82,6 +84,11 @@ const ApiPricesRoute = ApiPricesRouteImport.update({
   path: '/api/prices',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiQuoteRoute = ApiQuoteRouteImport.update({
+  id: '/api/quote',
+  path: '/api/quote',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiStakeRoute = ApiStakeRouteImport.update({
   id: '/api/stake',
   path: '/api/stake',
@@ -107,6 +114,11 @@ const ApiTokenLinksRoute = ApiTokenLinksRouteImport.update({
   path: '/api/token-links',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiTokenSearchRoute = ApiTokenSearchRouteImport.update({
+  id: '/api/token-search',
+  path: '/api/token-search',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiWalletRoute = ApiWalletRouteImport.update({
   id: '/api/wallet',
   path: '/api/wallet',
@@ -125,11 +137,13 @@ export interface FileRoutesByFullPath {
   '/api/portfolio-history': typeof ApiPortfolioHistoryRoute
   '/api/price': typeof ApiPriceRoute
   '/api/prices': typeof ApiPricesRoute
+  '/api/quote': typeof ApiQuoteRoute
   '/api/stake': typeof ApiStakeRoute
   '/api/stake-wallet': typeof ApiStakeWalletRoute
   '/api/support': typeof ApiSupportRoute
   '/api/token': typeof ApiTokenRoute
   '/api/token-links': typeof ApiTokenLinksRoute
+  '/api/token-search': typeof ApiTokenSearchRoute
   '/api/wallet': typeof ApiWalletRoute
 }
 export interface FileRoutesByTo {
@@ -144,11 +158,13 @@ export interface FileRoutesByTo {
   '/api/portfolio-history': typeof ApiPortfolioHistoryRoute
   '/api/price': typeof ApiPriceRoute
   '/api/prices': typeof ApiPricesRoute
+  '/api/quote': typeof ApiQuoteRoute
   '/api/stake': typeof ApiStakeRoute
   '/api/stake-wallet': typeof ApiStakeWalletRoute
   '/api/support': typeof ApiSupportRoute
   '/api/token': typeof ApiTokenRoute
   '/api/token-links': typeof ApiTokenLinksRoute
+  '/api/token-search': typeof ApiTokenSearchRoute
   '/api/wallet': typeof ApiWalletRoute
 }
 export interface FileRoutesById {
@@ -164,11 +180,13 @@ export interface FileRoutesById {
   '/api/portfolio-history': typeof ApiPortfolioHistoryRoute
   '/api/price': typeof ApiPriceRoute
   '/api/prices': typeof ApiPricesRoute
+  '/api/quote': typeof ApiQuoteRoute
   '/api/stake': typeof ApiStakeRoute
   '/api/stake-wallet': typeof ApiStakeWalletRoute
   '/api/support': typeof ApiSupportRoute
   '/api/token': typeof ApiTokenRoute
   '/api/token-links': typeof ApiTokenLinksRoute
+  '/api/token-search': typeof ApiTokenSearchRoute
   '/api/wallet': typeof ApiWalletRoute
 }
 export interface FileRouteTypes {
@@ -185,11 +203,13 @@ export interface FileRouteTypes {
     | '/api/portfolio-history'
     | '/api/price'
     | '/api/prices'
+    | '/api/quote'
     | '/api/stake'
     | '/api/stake-wallet'
     | '/api/support'
     | '/api/token'
     | '/api/token-links'
+    | '/api/token-search'
     | '/api/wallet'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -204,11 +224,13 @@ export interface FileRouteTypes {
     | '/api/portfolio-history'
     | '/api/price'
     | '/api/prices'
+    | '/api/quote'
     | '/api/stake'
     | '/api/stake-wallet'
     | '/api/support'
     | '/api/token'
     | '/api/token-links'
+    | '/api/token-search'
     | '/api/wallet'
   id:
     | '__root__'
@@ -223,11 +245,13 @@ export interface FileRouteTypes {
     | '/api/portfolio-history'
     | '/api/price'
     | '/api/prices'
+    | '/api/quote'
     | '/api/stake'
     | '/api/stake-wallet'
     | '/api/support'
     | '/api/token'
     | '/api/token-links'
+    | '/api/token-search'
     | '/api/wallet'
   fileRoutesById: FileRoutesById
 }
@@ -243,11 +267,13 @@ export interface RootRouteChildren {
   ApiPortfolioHistoryRoute: typeof ApiPortfolioHistoryRoute
   ApiPriceRoute: typeof ApiPriceRoute
   ApiPricesRoute: typeof ApiPricesRoute
+  ApiQuoteRoute: typeof ApiQuoteRoute
   ApiStakeRoute: typeof ApiStakeRoute
   ApiStakeWalletRoute: typeof ApiStakeWalletRoute
   ApiSupportRoute: typeof ApiSupportRoute
   ApiTokenRoute: typeof ApiTokenRoute
   ApiTokenLinksRoute: typeof ApiTokenLinksRoute
+  ApiTokenSearchRoute: typeof ApiTokenSearchRoute
   ApiWalletRoute: typeof ApiWalletRoute
 }
 
@@ -330,6 +356,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPricesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/quote': {
+      id: '/api/quote'
+      path: '/api/quote'
+      fullPath: '/api/quote'
+      preLoaderRoute: typeof ApiQuoteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/stake': {
       id: '/api/stake'
       path: '/api/stake'
@@ -365,6 +398,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTokenLinksRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/token-search': {
+      id: '/api/token-search'
+      path: '/api/token-search'
+      fullPath: '/api/token-search'
+      preLoaderRoute: typeof ApiTokenSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/wallet': {
       id: '/api/wallet'
       path: '/api/wallet'
@@ -387,11 +427,13 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPortfolioHistoryRoute: ApiPortfolioHistoryRoute,
   ApiPriceRoute: ApiPriceRoute,
   ApiPricesRoute: ApiPricesRoute,
+  ApiQuoteRoute: ApiQuoteRoute,
   ApiStakeRoute: ApiStakeRoute,
   ApiStakeWalletRoute: ApiStakeWalletRoute,
   ApiSupportRoute: ApiSupportRoute,
   ApiTokenRoute: ApiTokenRoute,
   ApiTokenLinksRoute: ApiTokenLinksRoute,
+  ApiTokenSearchRoute: ApiTokenSearchRoute,
   ApiWalletRoute: ApiWalletRoute,
 }
 export const routeTree = rootRouteImport

@@ -5,7 +5,7 @@ import { formatAmt, formatChangePct, formatUsd, shortAddr } from "@/lib/vela/for
 import type { FungibleHolding, NftHolding, WatchedWallet } from "@/lib/vela/helius-parse";
 import { useVela } from "@/lib/vela/store";
 import { holdingValueUsd, isDeadCoin } from "@/lib/vela/incinerator";
-import { holdingsUsd, tokenBySymbol, TOKENS } from "@/lib/vela/tokens";
+import { customTokenLookup, holdingsUsd, tokenLookup, walletTokens } from "@/lib/vela/tokens";
 import { useMarket } from "@/lib/vela/use-market";
 import { SectionLabel, TokenMark, Mark } from "@/components/vela/ui";
 import { Sparkline } from "@/components/vela/sparkline";
@@ -27,21 +27,28 @@ function SandboxHome() {
   const openSwap = useVela((state) => state.openSwap);
   const setToast = useVela((state) => state.setToast);
   const restoreSandbox = useVela((state) => state.restoreSandbox);
+  const customTokens = useVela((state) => state.customTokens);
+  const refreshCustomPrices = useVela((state) => state.refreshCustomPrices);
   const market = useMarket();
+  useEffect(() => {
+    void refreshCustomPrices();
+    const timer = window.setInterval(() => void refreshCustomPrices(), 60_000);
+    return () => window.clearInterval(timer);
+  }, [refreshCustomPrices, customTokens.length]);
   const prices = Object.fromEntries(Object.entries(market.tokens).map(([symbol, quote]) => [symbol, quote.priceUsd]));
   const total = holdingsUsd(holdings, prices);
   const chartHoldings = useMemo(
     () =>
       Object.entries(holdings)
         .filter(([, amount]) => amount > 0)
-        .map(([symbol, amount]) => {
-          const token = tokenBySymbol(symbol);
-          return { mint: token.mint, amount, price: prices[symbol] ?? token.priceUsd };
+        .flatMap(([symbol, amount]) => {
+          const token = tokenLookup(symbol);
+          return token ? [{ mint: token.mint, amount, price: prices[symbol] ?? token.priceUsd }] : [];
         }),
     [holdings, prices],
   );
   const [query, setQuery] = useState("");
-  const heldRows = TOKENS.filter((token) => {
+  const heldRows = walletTokens().filter((token) => {
     const amount = holdings[token.symbol] ?? 0;
     if (amount <= 0.0000001) return false;
     const quote = market.tokens[token.symbol];
@@ -107,7 +114,7 @@ function SandboxHome() {
                 mint={token.mint}
                 symbol={token.symbol}
                 name={token.name}
-                image={quote?.image}
+                image={quote?.image ?? customTokenLookup(token.symbol)?.image}
                 amount={amount}
                 usd={amount * price}
                 change24hPct={quote?.change24hPct ?? null}
@@ -123,7 +130,7 @@ function SandboxHome() {
                       decimals: token.decimals,
                       priceUsd: price,
                       change24hPct: quote?.change24hPct ?? null,
-                      image: quote?.image ?? null,
+                      image: quote?.image ?? customTokenLookup(token.symbol)?.image ?? null,
                     },
                   })
                 }

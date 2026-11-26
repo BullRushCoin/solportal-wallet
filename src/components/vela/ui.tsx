@@ -1,5 +1,5 @@
 import { useState, type ButtonHTMLAttributes, type ReactNode } from "react";
-import { TOKEN_MAP } from "@/lib/vela/tokens";
+import { customTokenLookup, TOKEN_MAP } from "@/lib/vela/tokens";
 import { useMarket } from "@/lib/vela/use-market";
 
 export function Mark({ className }: { className?: string }) {
@@ -8,21 +8,22 @@ export function Mark({ className }: { className?: string }) {
   );
 }
 
-export function TokenMark({ symbol, src }: { symbol: string; src?: string | null }) {
+export function TokenMark({ symbol, src, small }: { symbol: string; src?: string | null; small?: boolean }) {
+  const box = small ? "size-7 text-[10px]" : "size-10 text-xs";
   const market = useMarket();
-  const image = src ?? market.tokens[symbol]?.image ?? null;
+  const image = src ?? market.tokens[symbol]?.image ?? customTokenLookup(symbol)?.image ?? null;
   const [failed, setFailed] = useState(false);
   const standard = TOKEN_MAP[symbol]?.standard;
   if (image && !failed) {
     return (
-      <span className="relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-full border border-line bg-surface-2">
+      <span className={`relative grid ${box} shrink-0 place-items-center overflow-hidden rounded-full border border-line bg-surface-2`}>
         <img src={image} alt="" className="size-full object-cover" onError={() => setFailed(true)} />
         {standard === "token-2022" ? <span className="sr-only">Token-2022</span> : null}
       </span>
     );
   }
   return (
-    <span className="grid size-10 shrink-0 place-items-center rounded-full border border-line bg-surface-2 font-mono text-xs text-accent">
+    <span className={`grid ${box} shrink-0 place-items-center rounded-full border border-line bg-surface-2 font-mono text-accent`}>
       {symbol.slice(0, 1)}
       {standard === "token-2022" ? <span className="sr-only">Token-2022</span> : null}
     </span>

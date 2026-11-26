@@ -7,7 +7,16 @@ import { safeHttpUrl } from "@/lib/vela/open-url";
 import type { TxIntent } from "@/lib/vela/provider";
 import type { NativeStakePosition } from "@/lib/vela/stake";
 import { preferSwapOutput } from "@/lib/vela/incinerator";
-import { STARTER_HOLDINGS, STARTER_NFTS, tokenBySymbol, type Nft } from "@/lib/vela/tokens";
+import {
+  holdingKeyFor,
+  setCustomTokens,
+  STARTER_HOLDINGS,
+  STARTER_NFTS,
+  tokenBySymbol,
+  tokenLookup,
+  type CustomToken,
+  type Nft,
+} from "@/lib/vela/tokens";
 
 export type WalletMode = "seed" | "passkey" | "imported";
 
@@ -141,6 +150,8 @@ type Persisted = {
   nativeStakes: NativeStakePosition[];
   incineratedMints: string[];
   watchlist: WatchItem[];
+  /** Tokens learned at runtime (e.g. bought by mint in Swap). Metadata only; shared by every wallet. */
+  customTokens: CustomToken[];
 };
 
 type Ephemeral = {
@@ -185,7 +196,22 @@ type Actions = {
   openSwap: (from?: string | SwapPrefill) => void;
   clearSwapPrefill: () => void;
   toggleWatch: (item: Omit<WatchItem, "addedAt">) => void;
+  /** Refresh USD prices of runtime tokens from /api/prices. */
+  refreshCustomPrices: () => Promise<void>;
 };
+
+/** Register a runtime token; returns its holdings key (reuses an existing key for the same mint). */
+function registerCustom(list: CustomToken[], token: CustomToken): { list: CustomToken[]; key: string } {
+  const sameMint = list.find((item) => item.mint === token.mint);
+  if (sameMint) {
+    const next = list.map((item) => (item.mint === token.mint ? { ...item, ...token, symbol: item.symbol, priceUsd: token.priceUsd || item.priceUsd } : item));
+    return { list: next, key: sameMint.symbol };
+  }
+  const known = tokenLookup(token.symbol);
+  if (known && known.mint === token.mint) return { list, key: known.symbol };
+  const key = holdingKeyFor(token.symbol, token.mint, (candidate) => tokenLookup(candidate) ?? list.find((item) => item.symbol === candidate) ?? null);
+  return { list: [...list, { ...token, symbol: key }].slice(-200), key };
+}
 
 const EMPTY_REVENUE: Revenue = { swapFeesUsd: 0, stakeRevUsd: 0, onrampRevUsd: 0 };
 
@@ -297,6 +323,7 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
       nativeStakes: [],
       incineratedMints: [],
       watchlist: [],
+      customTokens: [],
       hydrated: false,
       tab: "home",
       more: "root",
@@ -538,15 +565,22 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
         let activity = get().activity;
 
         if (intent.kind === "swap") {
+          let output = intent.output;
+          if (intent.outputToken) {
+            const registered = registerCustom(get().customTokens, intent.outputToken);
+            setCustomTokens(registered.list);
+            set({ customTokens: registered.list });
+            output = registered.key;
+          }
           const deltas: Record<string, number> = {};
           deltas[intent.input] = (deltas[intent.input] ?? 0) - intent.amountIn;
-          deltas[intent.output] = (deltas[intent.output] ?? 0) + intent.amountOut;
+          deltas[output] = (deltas[output] ?? 0) + intent.amountOut;
           deltas.SOL = (deltas.SOL ?? 0) - intent.networkFeeSol;
           holdings = applyDeltas(holdings, deltas);
           revenue = { ...revenue, swapFeesUsd: revenue.swapFeesUsd + intent.feeUsd };
           activity = pushActivity(activity, {
             kind: "swap",
-            title: `Swapped ${intent.input} → ${intent.output}`,
+            title: `Swapped ${intent.input} → ${output}`,
             detail: `Platform fee ${intent.feeUsd.toFixed(2)} USD to treasury`,
             usd: -intent.feeUsd,
           });
@@ -725,6 +759,24 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
       },
       clearSwapPrefill: () => set({ swapPrefill: null }),
 
+      refreshCustomPrices: async () => {
+        const list = get().customTokens;
+        if (!list.length) return;
+        try {
+          const res = await fetch(`/api/prices?mints=${list.map((token) => token.mint).join(",")}`);
+          if (!res.ok) return;
+          const body = (await res.json()) as { prices?: Record<string, { priceUsd: number | null }> };
+          const next = get().customTokens.map((token) => {
+            const price = body.prices?.[token.mint]?.priceUsd;
+            return price && price > 0 ? { ...token, priceUsd: price } : token;
+          });
+          setCustomTokens(next);
+          set({ customTokens: next });
+        } catch {
+          // Keep the last known prices.
+        }
+      },
+
       toggleWatch: (item) => {
         const list = get().watchlist;
         const exists = list.some((entry) => entry.mint === item.mint);
@@ -755,9 +807,12 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
         nativeStakes: state.nativeStakes,
         incineratedMints: state.incineratedMints,
         watchlist: state.watchlist,
+        customTokens: state.customTokens,
       }),
       merge: (persisted, current) => {
         const saved = (persisted ?? {}) as Partial<Persisted>;
+        const customTokens = Array.isArray(saved.customTokens) ? saved.customTokens : [];
+        setCustomTokens(customTokens);
         const holdings = { ...(saved.holdings ?? current.holdings) };
         const incinerated = new Set(saved.incineratedMints ?? []);
         for (const [symbol, amount] of Object.entries(STARTER_HOLDINGS)) {
@@ -792,6 +847,7 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
           holdings,
           incineratedMints: saved.incineratedMints ?? [],
           watchlist: Array.isArray(saved.watchlist) ? saved.watchlist : [],
+          customTokens,
         };
       },
     },

@@ -153,8 +153,46 @@ export const STARTER_NFTS: Nft[] = [
   { id: "night-7", name: "Harbor Light #7", collection: "Harbor", pattern: "nft-night" },
 ];
 
+/**
+ * A token the sandbox learned about at runtime (e.g. bought through Swap by mint).
+ * `symbol` is the holdings key and is unique in the wallet; on a clash with a known
+ * symbol it carries a mint suffix ("USDC-Ab12").
+ */
+export type CustomToken = Token & { image: string | null; verified?: boolean };
+
+const customRegistry = new Map<string, CustomToken>();
+
+/** Replace the runtime registry (store hydration). Known symbols are never shadowed. */
+export function setCustomTokens(list: CustomToken[]): void {
+  customRegistry.clear();
+  for (const token of list) {
+    if (!TOKEN_MAP[token.symbol]) customRegistry.set(token.symbol, token);
+  }
+}
+
+export function customTokenList(): CustomToken[] {
+  return [...customRegistry.values()];
+}
+
+export function customTokenLookup(symbol: string): CustomToken | null {
+  return customRegistry.get(symbol) ?? null;
+}
+
+/** Built-in tokens plus anything registered at runtime. */
+export function walletTokens(): Token[] {
+  return [...TOKENS, ...customRegistry.values()];
+}
+
+/** Holdings key for a mint: its own symbol when free, else symbol plus a mint suffix. */
+export function holdingKeyFor(symbol: string, mint: string, taken: (key: string) => Token | null = tokenLookup): string {
+  const base = (symbol || "UNK").trim().slice(0, 16) || "UNK";
+  const owner = taken(base);
+  if (!owner || owner.mint === mint) return base;
+  return `${base}-${mint.slice(0, 4)}`;
+}
+
 export function tokenLookup(symbol: string): Token | null {
-  return TOKEN_MAP[symbol] ?? null;
+  return TOKEN_MAP[symbol] ?? customRegistry.get(symbol) ?? null;
 }
 
 export function tokenBySymbol(symbol: string): Token {
@@ -164,12 +202,12 @@ export function tokenBySymbol(symbol: string): Token {
 }
 
 export function tokenByMint(mint: string): Token | null {
-  return TOKENS.find((token) => token.mint === mint) ?? null;
+  return TOKENS.find((token) => token.mint === mint) ?? [...customRegistry.values()].find((token) => token.mint === mint) ?? null;
 }
 
 export function holdingsUsd(holdings: Record<string, number>, prices?: Record<string, number>): number {
   return Object.entries(holdings).reduce((sum, [symbol, amount]) => {
-    const price = prices?.[symbol] ?? TOKEN_MAP[symbol]?.priceUsd ?? 0;
+    const price = prices?.[symbol] ?? tokenLookup(symbol)?.priceUsd ?? 0;
     return sum + amount * price;
   }, 0);
 }

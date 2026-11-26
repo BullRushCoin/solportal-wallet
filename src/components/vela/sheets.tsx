@@ -4,7 +4,7 @@ import { dappByHost, dappById, normalizeHost } from "@/lib/vela/dapps";
 import { formatAmt, formatUsd, shortAddr } from "@/lib/vela/format";
 import { intentBlocked, type TxIntent } from "@/lib/vela/provider";
 import { priorityFeeSol, useVela } from "@/lib/vela/store";
-import { TOKENS, tokenBySymbol } from "@/lib/vela/tokens";
+import { tokenBySymbol, walletTokens } from "@/lib/vela/tokens";
 import { AssetSheet } from "@/components/vela/asset-sheet";
 import { AddWalletSheet, WalletsSheet } from "@/components/vela/wallets-sheet";
 import { DangerButton, GhostButton, Overlay, PrimaryButton, TokenMark } from "@/components/vela/ui";
@@ -208,7 +208,7 @@ function SendSheet() {
     <Overlay label="Send" onClose={() => setSheet(null)}>
       <h2 className="text-xl font-semibold">Send</h2>
       <div className="mt-3 flex gap-2 overflow-x-auto">
-        {TOKENS.filter((item) => (holdings[item.symbol] ?? 0) > 0).map((item) => (
+        {walletTokens().filter((item) => (holdings[item.symbol] ?? 0) > 0).map((item) => (
           <button
             key={item.symbol}
             onClick={() => setSymbol(item.symbol)}

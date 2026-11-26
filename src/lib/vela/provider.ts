@@ -1,4 +1,4 @@
-import type { Nft } from "@/lib/vela/tokens";
+import type { CustomToken, Nft } from "@/lib/vela/tokens";
 
 /**
  * Wallet Standard methods the in-app browser exposes to a dApp.
@@ -45,6 +45,8 @@ export type TxIntent = IntentBase &
         amountIn: number;
         amountOut: number;
         feeUsd: number;
+        /** Set when the output is a token the sandbox has not seen before; registered on approve. */
+        outputToken?: CustomToken;
       }
     | { kind: "send"; symbol: string; amount: number; to: string }
     | {
