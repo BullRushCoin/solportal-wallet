@@ -62,6 +62,22 @@ async function handle(request: Request): Promise<Response> {
   ].join("\n");
 
   try {
+    const resendKey = process.env.RESEND_API_KEY?.trim();
+    if (resendKey) {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: process.env.SUPPORT_FROM?.trim() || "SolPortal Support <onboarding@resend.dev>",
+          to: [to],
+          subject: `SolPortal support: ${topic}`,
+          text: message,
+          ...(contact.includes("@") ? { reply_to: contact } : {}),
+        }),
+      });
+      if (!res.ok) throw new Error(`resend ${res.status}`);
+      return Response.json({ ok: true });
+    }
     const res = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(to)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json", Referer: "https://solportal-wallet.vercel.app/" },
@@ -77,7 +93,8 @@ async function handle(request: Request): Promise<Response> {
     const out = (await res.json().catch(() => ({}))) as { success?: string | boolean };
     if (!res.ok || String(out.success) === "false") throw new Error("send failed");
     return Response.json({ ok: true });
-  } catch {
+  } catch (error) {
+    console.error("[support] send failed", error instanceof Error ? error.message : error);
     return Response.json({ ok: false, error: "Couldn't reach the support inbox. Try again shortly." }, { status: 502 });
   }
 }

@@ -1,6 +1,8 @@
 import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
+import { useEffect } from "react";
+import { installCrashReporter } from "@/lib/vela/crash-report";
 import appCss from "../styles.css?url";
 
 const APP_NAME = "SolPortal";
@@ -28,19 +30,33 @@ export const Route = createRootRoute({
       { rel: "manifest", href: "/__grok/manifest.webmanifest" },
       { rel: "apple-touch-icon", href: "/__grok/icon-180.png" },
     ],
+    scripts: [
+      { children: "window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments)};" },
+      { src: "/_vercel/insights/script.js", defer: true },
+    ],
   }),
-  component: () => (
+  component: RootDocument,
+});
+
+function CrashReporter() {
+  useEffect(() => installCrashReporter(), []);
+  return null;
+}
+
+function RootDocument() {
+  return (
     <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
       <body>
         <PreviewHostBridge />
+        <CrashReporter />
         <AuthProvider>
           <Outlet />
         </AuthProvider>
         <Scripts />
       </body>
     </html>
-  ),
-});
+  );
+}

@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiClientErrorRouteImport } from './routes/api/client-error'
 import { Route as ApiExploreRouteImport } from './routes/api/explore'
 import { Route as ApiFrameCheckRouteImport } from './routes/api/frame-check'
 import { Route as ApiHistoryRouteImport } from './routes/api/history'
@@ -32,6 +33,11 @@ import { Route as ApiWalletRouteImport } from './routes/api/wallet'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiClientErrorRoute = ApiClientErrorRouteImport.update({
+  id: '/api/client-error',
+  path: '/api/client-error',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiExploreRoute = ApiExploreRouteImport.update({
@@ -127,6 +133,7 @@ const ApiWalletRoute = ApiWalletRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/client-error': typeof ApiClientErrorRoute
   '/api/explore': typeof ApiExploreRoute
   '/api/frame-check': typeof ApiFrameCheckRoute
   '/api/history': typeof ApiHistoryRoute
@@ -148,6 +155,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/client-error': typeof ApiClientErrorRoute
   '/api/explore': typeof ApiExploreRoute
   '/api/frame-check': typeof ApiFrameCheckRoute
   '/api/history': typeof ApiHistoryRoute
@@ -170,6 +178,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/client-error': typeof ApiClientErrorRoute
   '/api/explore': typeof ApiExploreRoute
   '/api/frame-check': typeof ApiFrameCheckRoute
   '/api/history': typeof ApiHistoryRoute
@@ -193,6 +202,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/api/client-error'
     | '/api/explore'
     | '/api/frame-check'
     | '/api/history'
@@ -214,6 +224,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/api/client-error'
     | '/api/explore'
     | '/api/frame-check'
     | '/api/history'
@@ -235,6 +246,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/api/client-error'
     | '/api/explore'
     | '/api/frame-check'
     | '/api/history'
@@ -257,6 +269,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiClientErrorRoute: typeof ApiClientErrorRoute
   ApiExploreRoute: typeof ApiExploreRoute
   ApiFrameCheckRoute: typeof ApiFrameCheckRoute
   ApiHistoryRoute: typeof ApiHistoryRoute
@@ -284,6 +297,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/client-error': {
+      id: '/api/client-error'
+      path: '/api/client-error'
+      fullPath: '/api/client-error'
+      preLoaderRoute: typeof ApiClientErrorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/explore': {
@@ -417,6 +437,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiClientErrorRoute: ApiClientErrorRoute,
   ApiExploreRoute: ApiExploreRoute,
   ApiFrameCheckRoute: ApiFrameCheckRoute,
   ApiHistoryRoute: ApiHistoryRoute,
