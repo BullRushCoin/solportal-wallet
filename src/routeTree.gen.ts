@@ -15,6 +15,7 @@ import { Route as ApiHistoryRouteImport } from './routes/api/history'
 import { Route as ApiIncineratorRouteImport } from './routes/api/incinerator'
 import { Route as ApiMarketRouteImport } from './routes/api/market'
 import { Route as ApiNewsRouteImport } from './routes/api/news'
+import { Route as ApiPortfolioHistoryRouteImport } from './routes/api/portfolio-history'
 import { Route as ApiPriceRouteImport } from './routes/api/price'
 import { Route as ApiStakeRouteImport } from './routes/api/stake'
 import { Route as ApiStakeWalletRouteImport } from './routes/api/stake-wallet'
@@ -51,6 +52,11 @@ const ApiMarketRoute = ApiMarketRouteImport.update({
 const ApiNewsRoute = ApiNewsRouteImport.update({
   id: '/api/news',
   path: '/api/news',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPortfolioHistoryRoute = ApiPortfolioHistoryRouteImport.update({
+  id: '/api/portfolio-history',
+  path: '/api/portfolio-history',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPriceRoute = ApiPriceRouteImport.update({
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/api/incinerator': typeof ApiIncineratorRoute
   '/api/market': typeof ApiMarketRoute
   '/api/news': typeof ApiNewsRoute
+  '/api/portfolio-history': typeof ApiPortfolioHistoryRoute
   '/api/price': typeof ApiPriceRoute
   '/api/stake': typeof ApiStakeRoute
   '/api/stake-wallet': typeof ApiStakeWalletRoute
@@ -111,6 +118,7 @@ export interface FileRoutesByTo {
   '/api/incinerator': typeof ApiIncineratorRoute
   '/api/market': typeof ApiMarketRoute
   '/api/news': typeof ApiNewsRoute
+  '/api/portfolio-history': typeof ApiPortfolioHistoryRoute
   '/api/price': typeof ApiPriceRoute
   '/api/stake': typeof ApiStakeRoute
   '/api/stake-wallet': typeof ApiStakeWalletRoute
@@ -127,6 +135,7 @@ export interface FileRoutesById {
   '/api/incinerator': typeof ApiIncineratorRoute
   '/api/market': typeof ApiMarketRoute
   '/api/news': typeof ApiNewsRoute
+  '/api/portfolio-history': typeof ApiPortfolioHistoryRoute
   '/api/price': typeof ApiPriceRoute
   '/api/stake': typeof ApiStakeRoute
   '/api/stake-wallet': typeof ApiStakeWalletRoute
@@ -144,6 +153,7 @@ export interface FileRouteTypes {
     | '/api/incinerator'
     | '/api/market'
     | '/api/news'
+    | '/api/portfolio-history'
     | '/api/price'
     | '/api/stake'
     | '/api/stake-wallet'
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/api/incinerator'
     | '/api/market'
     | '/api/news'
+    | '/api/portfolio-history'
     | '/api/price'
     | '/api/stake'
     | '/api/stake-wallet'
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '/api/incinerator'
     | '/api/market'
     | '/api/news'
+    | '/api/portfolio-history'
     | '/api/price'
     | '/api/stake'
     | '/api/stake-wallet'
@@ -190,6 +202,7 @@ export interface RootRouteChildren {
   ApiIncineratorRoute: typeof ApiIncineratorRoute
   ApiMarketRoute: typeof ApiMarketRoute
   ApiNewsRoute: typeof ApiNewsRoute
+  ApiPortfolioHistoryRoute: typeof ApiPortfolioHistoryRoute
   ApiPriceRoute: typeof ApiPriceRoute
   ApiStakeRoute: typeof ApiStakeRoute
   ApiStakeWalletRoute: typeof ApiStakeWalletRoute
@@ -241,6 +254,13 @@ declare module '@tanstack/react-router' {
       path: '/api/news'
       fullPath: '/api/news'
       preLoaderRoute: typeof ApiNewsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/portfolio-history': {
+      id: '/api/portfolio-history'
+      path: '/api/portfolio-history'
+      fullPath: '/api/portfolio-history'
+      preLoaderRoute: typeof ApiPortfolioHistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/price': {
@@ -302,6 +322,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiIncineratorRoute: ApiIncineratorRoute,
   ApiMarketRoute: ApiMarketRoute,
   ApiNewsRoute: ApiNewsRoute,
+  ApiPortfolioHistoryRoute: ApiPortfolioHistoryRoute,
   ApiPriceRoute: ApiPriceRoute,
   ApiStakeRoute: ApiStakeRoute,
   ApiStakeWalletRoute: ApiStakeWalletRoute,

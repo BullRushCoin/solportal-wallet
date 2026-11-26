@@ -320,7 +320,7 @@ export async function lookupToken(mint: string): Promise<TokenLookup | null> {
 
 export type LivePrice = { mint: string; priceUsd: number | null; change24hPct: number | null; at: number };
 export type PricePoint = { t: number; p: number };
-export type ChartRange = "1H" | "1D" | "1W";
+export type ChartRange = "1H" | "1D" | "1W" | "1M" | "1Y";
 
 const PRICE_TTL_MS = 4_000;
 const HISTORY_TTL_MS = 120_000;
@@ -329,7 +329,7 @@ const GECKO = "https://api.geckoterminal.com/api/v2/networks/solana";
 
 const priceCache = new Map<string, CacheEntry<LivePrice>>();
 const historyCache = new Map<string, CacheEntry<PricePoint[]>>();
-const poolCache = new Map<string, CacheEntry<string | null>>();
+const poolCache = new Map<string, CacheEntry<string[]>>();
 
 export async function loadLivePrice(mint: string): Promise<LivePrice> {
   const now = Date.now();
@@ -348,8 +348,8 @@ export async function loadLivePrice(mint: string): Promise<LivePrice> {
   return value;
 }
 
-/** Most-liquid pool for a mint, from GeckoTerminal (free, no key). */
-async function topPoolFor(mint: string): Promise<string | null> {
+/** Most-liquid pools for a mint (up to 3), from GeckoTerminal (free, no key). */
+async function topPoolsFor(mint: string): Promise<string[]> {
   const now = Date.now();
   const cached = poolCache.get(mint);
   if (cached && now - cached.at < POOL_TTL_MS) return cached.value;
@@ -360,15 +360,17 @@ async function topPoolFor(mint: string): Promise<string | null> {
     .map((attrs) => ({ address: asString(attrs.address), liquidity: asNumber(attrs.reserve_in_usd) ?? 0 }))
     .filter((pool): pool is { address: string; liquidity: number } => Boolean(pool.address))
     .sort((a, b) => b.liquidity - a.liquidity);
-  const address = pools[0]?.address ?? null;
-  poolCache.set(mint, { at: now, value: address });
-  return address;
+  const addresses = pools.slice(0, 3).map((pool) => pool.address);
+  poolCache.set(mint, { at: now, value: addresses });
+  return addresses;
 }
 
-const RANGE_QUERY: Record<ChartRange, { timeframe: "minute" | "hour"; aggregate: number; limit: number }> = {
+const RANGE_QUERY: Record<ChartRange, { timeframe: "minute" | "hour" | "day"; aggregate: number; limit: number }> = {
   "1H": { timeframe: "minute", aggregate: 1, limit: 60 },
   "1D": { timeframe: "minute", aggregate: 15, limit: 96 },
   "1W": { timeframe: "hour", aggregate: 1, limit: 168 },
+  "1M": { timeframe: "hour", aggregate: 4, limit: 180 },
+  "1Y": { timeframe: "day", aggregate: 1, limit: 365 },
 };
 
 export async function loadPriceHistory(mint: string, range: ChartRange): Promise<PricePoint[]> {
@@ -377,24 +379,32 @@ export async function loadPriceHistory(mint: string, range: ChartRange): Promise
   const cached = historyCache.get(key);
   if (cached && now - cached.at < HISTORY_TTL_MS) return cached.value;
   try {
-    const pool = await topPoolFor(mint);
-    if (!pool) return [];
+    const pools = await topPoolsFor(mint);
+    if (!pools.length) return [];
     const { timeframe, aggregate, limit } = RANGE_QUERY[range];
-    const payload = asRecord(
-      await getJson(
-        `${GECKO}/pools/${pool}/ohlcv/${timeframe}?aggregate=${aggregate}&limit=${limit}&currency=usd&token=${encodeURIComponent(mint)}`,
-      ),
-    );
-    const list = asArray(asRecord(asRecord(payload?.data)?.attributes)?.ohlcv_list);
-    const points = list
-      .map((row) => {
-        const cells = asArray(row);
-        const t = asNumber(cells[0]);
-        const close = asNumber(cells[4]);
-        return t !== null && close !== null && close > 0 ? { t: t * 1000, p: close } : null;
-      })
-      .filter((point): point is PricePoint => point !== null)
-      .sort((a, b) => a.t - b.t);
+    // Long ranges: the most liquid pool can be young, so fall back to the next pool
+    // when the first one covers less than half the window.
+    const tries = range === "1M" || range === "1Y" ? pools.length : 1;
+    let points: PricePoint[] = [];
+    for (let i = 0; i < tries; i += 1) {
+      const payload = asRecord(
+        await getJson(
+          `${GECKO}/pools/${pools[i]}/ohlcv/${timeframe}?aggregate=${aggregate}&limit=${limit}&currency=usd&token=${encodeURIComponent(mint)}`,
+        ),
+      );
+      const list = asArray(asRecord(asRecord(payload?.data)?.attributes)?.ohlcv_list);
+      const candidate = list
+        .map((row) => {
+          const cells = asArray(row);
+          const t = asNumber(cells[0]);
+          const close = asNumber(cells[4]);
+          return t !== null && close !== null && close > 0 ? { t: t * 1000, p: close } : null;
+        })
+        .filter((point): point is PricePoint => point !== null)
+        .sort((a, b) => a.t - b.t);
+      if (candidate.length > points.length) points = candidate;
+      if (points.length >= limit / 2) break;
+    }
     historyCache.set(key, { at: now, value: points });
     return points;
   } catch {

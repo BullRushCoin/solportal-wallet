@@ -1,16 +1,16 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, ChevronDown, Copy, Landmark, Search, X } from "lucide-react";
 import { isSolanaAddress } from "@/lib/vela/address";
 import { formatAmt, formatChangePct, formatUsd, shortAddr } from "@/lib/vela/format";
 import type { FungibleHolding, NftHolding, WatchedWallet } from "@/lib/vela/helius-parse";
-import { holdingsChange24h } from "@/lib/vela/market";
 import { useVela } from "@/lib/vela/store";
 import { holdingValueUsd, isDeadCoin } from "@/lib/vela/incinerator";
-import { holdingsUsd, TOKENS } from "@/lib/vela/tokens";
+import { holdingsUsd, tokenBySymbol, TOKENS } from "@/lib/vela/tokens";
 import { useMarket } from "@/lib/vela/use-market";
 import { SectionLabel, TokenMark, Mark } from "@/components/vela/ui";
 import { Sparkline } from "@/components/vela/sparkline";
 import { AccountAvatar } from "@/components/vela/wallets-sheet";
+import { PortfolioChart } from "@/components/vela/portfolio-chart";
 import { IncineratorCard } from "@/components/vela/incinerator-card";
 
 export function HomeView() {
@@ -30,7 +30,16 @@ function SandboxHome() {
   const market = useMarket();
   const prices = Object.fromEntries(Object.entries(market.tokens).map(([symbol, quote]) => [symbol, quote.priceUsd]));
   const total = holdingsUsd(holdings, prices);
-  const change = holdingsChange24h(holdings, market.tokens);
+  const chartHoldings = useMemo(
+    () =>
+      Object.entries(holdings)
+        .filter(([, amount]) => amount > 0)
+        .map(([symbol, amount]) => {
+          const token = tokenBySymbol(symbol);
+          return { mint: token.mint, amount, price: prices[symbol] ?? token.priceUsd };
+        }),
+    [holdings, prices],
+  );
   const [query, setQuery] = useState("");
   const heldRows = TOKENS.filter((token) => {
     const amount = holdings[token.symbol] ?? 0;
@@ -58,7 +67,7 @@ function SandboxHome() {
       <p className="mt-8 font-mono text-xs tracking-widest text-muted uppercase">Portfolio</p>
       <p className="mt-1 text-5xl font-semibold tracking-tight tabular-nums">{formatUsd(total)}</p>
       {total > 0 ? (
-        <ChangeLine change={change} live={market.live} />
+        <PortfolioChart holdings={chartHoldings} total={total} />
       ) : (
         <button className="mt-3 text-sm text-accent" onClick={restoreSandbox}>
           Restore sandbox balances
@@ -204,7 +213,14 @@ function WatchedHome({ address }: { address: string }) {
           <p className="mt-1 text-5xl font-semibold tracking-tight tabular-nums">
             {data?.totalUsd !== null && data?.totalUsd !== undefined ? formatUsd(data.totalUsd) : "—"}
           </p>
-          <p className="mt-2 text-sm text-muted">Live on-chain balances · USD when price data is available</p>
+          {data?.totalUsd ? (
+            <PortfolioChart
+              holdings={allRows.map((row) => ({ mint: row.mint, amount: row.amount, price: row.priceUsd ?? 0 }))}
+              total={data.totalUsd}
+            />
+          ) : (
+            <p className="mt-2 text-sm text-muted">Live on-chain balances · USD when price data is available</p>
+          )}
         </>
       ) : null}
 
@@ -431,20 +447,6 @@ function HomeHeader({
         <Copy className="size-3.5 text-muted" />
       </button>
     </header>
-  );
-}
-
-function ChangeLine({ change, live }: { change: number | null; live: boolean }) {
-  if (change === null) {
-    return (
-      <p className="mt-2 text-sm text-muted">{live ? "Live prices · 24h change unavailable" : "Demo prices"}</p>
-    );
-  }
-  const up = change >= 0;
-  return (
-    <p className={`mt-2 text-sm tabular-nums ${up ? "text-accent" : "text-danger"}`}>
-      {formatChangePct(change)} · 24h{live ? " · live" : ""}
-    </p>
   );
 }
 
