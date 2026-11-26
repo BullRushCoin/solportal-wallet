@@ -1,4 +1,4 @@
-import type { Headline, NewsSnapshot, TokenLinks, TrendingCoin } from "@/lib/vela/social";
+import { rssItemImage, type Headline, type NewsSnapshot, type TokenLinks, type TrendingCoin } from "@/lib/vela/social";
 
 const NEWS_TTL_MS = 5 * 60_000;
 const LINKS_TTL_MS = 6 * 60 * 60_000;
@@ -57,7 +57,7 @@ async function loadFeed(feed: (typeof FEEDS)[number]): Promise<Headline[]> {
     if (!title || !link || !/^https?:\/\//.test(link)) continue;
     if (!feed.all && !SOLANA_WORDS.test(`${title} ${tag(item, "description") ?? ""}`)) continue;
     const date = Date.parse(tag(item, "pubDate") ?? "");
-    out.push({ title, url: link, source: feed.source, publishedAt: Number.isFinite(date) ? date : null });
+    out.push({ title, url: link, source: feed.source, publishedAt: Number.isFinite(date) ? date : null, image: rssItemImage(item) });
   }
   return out;
 }
@@ -82,6 +82,7 @@ async function loadTrending(): Promise<TrendingCoin[]> {
           change24hPct: typeof stats.priceChange === "number" ? stats.priceChange : null,
           image: typeof row.icon === "string" ? row.icon : null,
           decimals: typeof row.decimals === "number" ? row.decimals : 6,
+          marketCapUsd: typeof row.mcap === "number" && row.mcap > 0 ? row.mcap : null,
         };
       });
   } finally {
