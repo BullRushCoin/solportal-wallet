@@ -69,7 +69,7 @@ async function handle(request: Request): Promise<Response> {
         headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           from: process.env.SUPPORT_FROM?.trim() || "SolPortal Support <onboarding@resend.dev>",
-          to: [to],
+          to: [to.toLowerCase()],
           subject: `SolPortal support: ${topic}`,
           text: message,
           ...(contact.includes("@") ? { reply_to: contact } : {}),
