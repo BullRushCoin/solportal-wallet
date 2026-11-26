@@ -1,4 +1,5 @@
-import { Bookmark, ChevronLeft, ExternalLink, Lock, ShieldAlert } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Bookmark, ChevronLeft, ExternalLink, FlaskConical, Lock, RotateCw, ShieldAlert, X } from "lucide-react";
 import { dappById, intentForAction, type Dapp } from "@/lib/vela/dapps";
 import { formatAmt, formatUsd } from "@/lib/vela/format";
 import { openSafeHttpUrl } from "@/lib/vela/open-url";
@@ -10,6 +11,7 @@ export function BrowserView() {
   const browser = useVela((state) => state.browser);
   const closeBrowser = useVela((state) => state.closeBrowser);
   const acceptGate = useVela((state) => state.acceptGate);
+  const goLive = useVela((state) => state.goLive);
   const bookmarks = useVela((state) => state.bookmarks);
   const toggleBookmark = useVela((state) => state.toggleBookmark);
   const connected = useVela((state) => state.connected);
@@ -17,14 +19,10 @@ export function BrowserView() {
   const priority = useVela((state) => state.priority);
   const setSheet = useVela((state) => state.setSheet);
   const setTab = useVela((state) => state.setTab);
-  const setToast = useVela((state) => state.setToast);
-
-  function openRealSite(url: string) {
-    if (!openSafeHttpUrl(url)) setToast("Only http and https links can open.");
-  }
 
   if (!browser) return null;
   const dapp = browser.dappId === "external" ? null : dappById(browser.dappId);
+  if (browser.stage === "live") return <LiveBrowser url={browser.url} dapp={dapp ?? null} />;
   const saved = dapp ? bookmarks.some((bookmark) => bookmark.dappId === dapp.id) : false;
   const linked = dapp ? connected.some((site) => site.origin === dapp.origin) : false;
 
@@ -72,10 +70,7 @@ export function BrowserView() {
           </p>
           <RealSiteNote />
           <div className="mt-auto flex flex-col gap-3 pb-6">
-            <PrimaryButton onClick={() => openRealSite(dapp?.origin ?? browser.url)}>
-              <ExternalLink className="mr-2 size-4" />
-              Open real site in new tab
-            </PrimaryButton>
+            <PrimaryButton onClick={goLive}>Open site anyway</PrimaryButton>
             <GhostButton onClick={acceptGate}>Continue to sandbox preview</GhostButton>
             <GhostButton onClick={closeBrowser}>Go back</GhostButton>
           </div>
@@ -86,10 +81,7 @@ export function BrowserView() {
             <p className="font-mono text-xs tracking-widest text-accent uppercase">Sandbox preview · simulated</p>
             <RealSiteNote compact />
             <div className="mt-3">
-              <GhostButton onClick={() => openRealSite(dapp?.origin ?? browser.url)}>
-                <ExternalLink className="mr-2 size-4" />
-                Open real site in new tab
-              </GhostButton>
+              <GhostButton onClick={goLive}>Open live site</GhostButton>
             </div>
           </div>
           {dapp ? <Site dapp={dapp} linked={linked} onAct={() => act(dapp)} /> : <UnknownSite url={browser.url} />}
@@ -256,7 +248,111 @@ function actionLabel(dapp: Dapp): string {
 function RealSiteNote({ compact = false }: { compact?: boolean }) {
   return (
     <p className={`${compact ? "mt-2" : "mt-4"} text-sm leading-relaxed text-pretty text-muted`}>
-      The real site opens in a separate browser tab. This sandbox wallet cannot connect to real sites, and nothing here signs or broadcasts a real transaction.
+      The live site opens inside SolPortal. This sandbox wallet cannot connect to real sites, and nothing here signs or broadcasts a real transaction.
     </p>
+  );
+}
+
+type FrameState = "checking" | "ok" | "blocked";
+
+function LiveBrowser({ url, dapp }: { url: string; dapp: Dapp | null }) {
+  const closeBrowser = useVela((state) => state.closeBrowser);
+  const acceptGate = useVela((state) => state.acceptGate);
+  const setToast = useVela((state) => state.setToast);
+  const accountName = useVela((state) => state.accounts.find((a) => a.id === state.activeAccountId)?.name ?? "");
+  const [frame, setFrame] = useState<FrameState>("checking");
+  const [loaded, setLoaded] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const host = (() => {
+    try {
+      return new URL(url).host;
+    } catch {
+      return url;
+    }
+  })();
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setFrame("checking");
+    setLoaded(false);
+    void fetch(`/api/frame-check?url=${encodeURIComponent(url)}`, { signal: controller.signal })
+      .then((res) => res.json() as Promise<{ embeddable?: boolean }>)
+      .then((body) => setFrame(body.embeddable === false ? "blocked" : "ok"))
+      .catch(() => {
+        if (!controller.signal.aborted) setFrame("ok");
+      });
+    return () => controller.abort();
+  }, [url]);
+
+  const openSafari = () => {
+    if (!openSafeHttpUrl(url)) setToast("Only http and https links can open.");
+  };
+
+  return (
+    <div className="absolute inset-0 z-30 flex flex-col bg-bg">
+      <header className="flex items-center gap-2 border-b border-line px-3 py-2">
+        <span className="grid size-9 shrink-0 place-items-center rounded-full border border-line bg-surface-2 text-xs font-semibold">
+          {(accountName || "SP").slice(0, 2).toUpperCase()}
+        </span>
+        <div className="flex min-w-0 flex-1 items-center gap-1 rounded-full border border-line bg-surface px-3 py-2">
+          {url.startsWith("https://") ? <Lock className="size-3 shrink-0 text-accent" /> : <ShieldAlert className="size-3 shrink-0 text-danger" />}
+          <span className="truncate font-mono text-xs">{host}</span>
+        </div>
+        <button aria-label="Reload" className="grid size-9 place-items-center text-muted" onClick={() => { setLoaded(false); setReloadKey((k) => k + 1); }}>
+          <RotateCw className="size-4" />
+        </button>
+        <button aria-label="Open in Safari" className="grid size-9 place-items-center text-muted" onClick={openSafari}>
+          <ExternalLink className="size-4" />
+        </button>
+        <button aria-label="Close browser" className="grid size-9 place-items-center" onClick={closeBrowser}>
+          <X className="size-5" />
+        </button>
+      </header>
+
+      {frame === "blocked" ? (
+        <div className="flex flex-1 flex-col px-5 pt-10">
+          <ShieldAlert className="size-8 text-muted" />
+          <h2 className="mt-4 text-2xl font-semibold tracking-tight text-balance">{host} can't open inside other apps</h2>
+          <p className="mt-3 text-sm leading-relaxed text-pretty text-muted">
+            This site blocks being shown inside another website for security. It will open in-app once SolPortal ships as a native iPhone app. For now, open it in Safari.
+          </p>
+          <div className="mt-6 flex flex-col gap-3">
+            <PrimaryButton onClick={openSafari}>
+              <ExternalLink className="mr-2 size-4" />
+              Open in Safari
+            </PrimaryButton>
+            {dapp ? (
+              <GhostButton onClick={acceptGate}>
+                <FlaskConical className="mr-2 size-4" />
+                Try the sandbox demo
+              </GhostButton>
+            ) : null}
+            <GhostButton onClick={closeBrowser}>
+              <ChevronLeft className="mr-2 size-4" />
+              Back to SolPortal
+            </GhostButton>
+          </div>
+        </div>
+      ) : (
+        <div className="relative flex-1">
+          {frame === "checking" || !loaded ? (
+            <div className="absolute inset-x-0 top-0 h-0.5 overflow-hidden bg-line">
+              <div className="h-full w-1/3 animate-pulse bg-accent" />
+            </div>
+          ) : null}
+          {frame === "ok" ? (
+            <iframe
+              key={reloadKey}
+              src={url}
+              title={host}
+              onLoad={() => setLoaded(true)}
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+              referrerPolicy="strict-origin-when-cross-origin"
+              className="size-full border-0 bg-white"
+            />
+          ) : null}
+        </div>
+      )}
+    </div>
   );
 }

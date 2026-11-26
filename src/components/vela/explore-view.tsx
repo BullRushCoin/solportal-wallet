@@ -2,7 +2,6 @@ import { useMemo, useState, type ReactNode } from "react";
 import { ExternalLink, Search } from "lucide-react";
 import { CATEGORIES, DIRECTORY, type Category } from "@/lib/vela/dapps";
 import { formatChangePct, formatCompactUsd, formatUsd, formatWhen } from "@/lib/vela/format";
-import { openSafeHttpUrl } from "@/lib/vela/open-url";
 import { useExplore } from "@/lib/vela/use-explore";
 import { useVela } from "@/lib/vela/store";
 import type { ExploreDappRow, ExplorePairRow, ExplorePerpMarket, ExploreSnapshot } from "@/lib/vela/explore";
@@ -440,6 +439,5 @@ function Mark({ src, label }: { src?: string | null; label: string }) {
 }
 
 function openListedUrl(url: string) {
-  if (openSafeHttpUrl(url)) return;
   useVela.getState().openExternal(url);
 }

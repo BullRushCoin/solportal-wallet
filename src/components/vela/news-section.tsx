@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { ExternalLink } from "lucide-react";
 import { formatChangePct, formatWhen } from "@/lib/vela/format";
-import { openSafeHttpUrl } from "@/lib/vela/open-url";
 import type { NewsSnapshot } from "@/lib/vela/social";
 import { useVela } from "@/lib/vela/store";
 import { TOKENS } from "@/lib/vela/tokens";
@@ -109,7 +108,7 @@ export function NewsSection() {
                 <button
                   type="button"
                   className="flex w-full items-start gap-3 px-4 py-3 text-left"
-                  onClick={() => openSafeHttpUrl(item.url)}
+                  onClick={() => useVela.getState().openExternal(item.url)}
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm leading-snug font-medium text-pretty">{item.title}</span>

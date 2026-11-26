@@ -55,7 +55,7 @@ export type Priority = "low" | "fast" | "protect";
 export type BrowserState = {
   dappId: string;
   url: string;
-  stage: "gate" | "site";
+  stage: "gate" | "site" | "live";
 };
 
 export type SwapPrefill = {
@@ -157,7 +157,8 @@ type Actions = {
   removeAccount: (id: string) => void;
   resetWallet: () => void;
   restoreSandbox: () => void;
-  openDapp: (dappId: string, stage?: "gate" | "site") => void;
+  openDapp: (dappId: string, stage?: "gate" | "site" | "live") => void;
+  goLive: () => void;
   openExternal: (url: string) => void;
   closeBrowser: () => void;
   acceptGate: () => void;
@@ -455,7 +456,7 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
         const dapp = dappById(dappId);
         if (!dapp) return;
         const recents = [dappId, ...get().recents.filter((id) => id !== dappId)].slice(0, 8);
-        const nextStage = stage ?? (dapp.verified ? "site" : "gate");
+        const nextStage = stage ?? (dapp.verified ? "live" : "gate");
         set({ browser: { dappId, url: dapp.origin, stage: nextStage }, recents });
       },
 
@@ -476,12 +477,17 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
           return;
         }
         set({
-          browser: { dappId: "external", url: safe, stage: "gate" },
+          browser: { dappId: "external", url: safe, stage: "live" },
           sheet: null,
         });
       },
 
       closeBrowser: () => set({ browser: null, sheet: null }),
+      goLive: () => {
+        const browser = get().browser;
+        if (!browser) return;
+        set({ browser: { ...browser, stage: "live" } });
+      },
       acceptGate: () => {
         const browser = get().browser;
         if (!browser) return;

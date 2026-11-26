@@ -257,11 +257,11 @@ describe("store create and approve", () => {
     assert.match(after.activity[0]?.detail ?? "", /Simulated/);
   });
 
-  it("opens a typed https URL in the sandbox browser", () => {
+  it("opens a typed https URL in the in-app browser", () => {
     useVela.getState().openExternal("example.com");
     const browser = useVela.getState().browser;
     assert.equal(browser?.dappId, "external");
     assert.equal(browser?.url, "https://example.com/");
-    assert.equal(browser?.stage, "gate");
+    assert.equal(browser?.stage, "live");
   });
 });

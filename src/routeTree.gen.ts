@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiExploreRouteImport } from './routes/api/explore'
+import { Route as ApiFrameCheckRouteImport } from './routes/api/frame-check'
 import { Route as ApiHistoryRouteImport } from './routes/api/history'
 import { Route as ApiIncineratorRouteImport } from './routes/api/incinerator'
 import { Route as ApiMarketRouteImport } from './routes/api/market'
@@ -32,6 +33,11 @@ const IndexRoute = IndexRouteImport.update({
 const ApiExploreRoute = ApiExploreRouteImport.update({
   id: '/api/explore',
   path: '/api/explore',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFrameCheckRoute = ApiFrameCheckRouteImport.update({
+  id: '/api/frame-check',
+  path: '/api/frame-check',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiHistoryRoute = ApiHistoryRouteImport.update({
@@ -98,6 +104,7 @@ const ApiWalletRoute = ApiWalletRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/explore': typeof ApiExploreRoute
+  '/api/frame-check': typeof ApiFrameCheckRoute
   '/api/history': typeof ApiHistoryRoute
   '/api/incinerator': typeof ApiIncineratorRoute
   '/api/market': typeof ApiMarketRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/explore': typeof ApiExploreRoute
+  '/api/frame-check': typeof ApiFrameCheckRoute
   '/api/history': typeof ApiHistoryRoute
   '/api/incinerator': typeof ApiIncineratorRoute
   '/api/market': typeof ApiMarketRoute
@@ -131,6 +139,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/explore': typeof ApiExploreRoute
+  '/api/frame-check': typeof ApiFrameCheckRoute
   '/api/history': typeof ApiHistoryRoute
   '/api/incinerator': typeof ApiIncineratorRoute
   '/api/market': typeof ApiMarketRoute
@@ -149,6 +158,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/api/explore'
+    | '/api/frame-check'
     | '/api/history'
     | '/api/incinerator'
     | '/api/market'
@@ -165,6 +175,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/api/explore'
+    | '/api/frame-check'
     | '/api/history'
     | '/api/incinerator'
     | '/api/market'
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/api/explore'
+    | '/api/frame-check'
     | '/api/history'
     | '/api/incinerator'
     | '/api/market'
@@ -198,6 +210,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiExploreRoute: typeof ApiExploreRoute
+  ApiFrameCheckRoute: typeof ApiFrameCheckRoute
   ApiHistoryRoute: typeof ApiHistoryRoute
   ApiIncineratorRoute: typeof ApiIncineratorRoute
   ApiMarketRoute: typeof ApiMarketRoute
@@ -226,6 +239,13 @@ declare module '@tanstack/react-router' {
       path: '/api/explore'
       fullPath: '/api/explore'
       preLoaderRoute: typeof ApiExploreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/frame-check': {
+      id: '/api/frame-check'
+      path: '/api/frame-check'
+      fullPath: '/api/frame-check'
+      preLoaderRoute: typeof ApiFrameCheckRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/history': {
@@ -318,6 +338,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiExploreRoute: ApiExploreRoute,
+  ApiFrameCheckRoute: ApiFrameCheckRoute,
   ApiHistoryRoute: ApiHistoryRoute,
   ApiIncineratorRoute: ApiIncineratorRoute,
   ApiMarketRoute: ApiMarketRoute,

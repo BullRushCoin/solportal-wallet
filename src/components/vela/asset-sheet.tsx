@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Globe, MessageCircle, Send as SendIcon, Wallet } from "lucide-react";
-import { openSafeHttpUrl } from "@/lib/vela/open-url";
 import type { TokenLinks } from "@/lib/vela/social";
 import { Area, AreaChart, ReferenceDot, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatAmt, formatChangePct, formatUsd } from "@/lib/vela/format";
@@ -272,7 +271,7 @@ function LinkChip({ label, icon, url }: { label: string; icon: React.ReactNode; 
   return (
     <button
       type="button"
-      onClick={() => openSafeHttpUrl(url)}
+      onClick={() => useVela.getState().openExternal(url)}
       className="inline-flex h-9 items-center gap-2 rounded-full border border-line bg-surface-2 px-3 text-sm"
     >
       {icon}

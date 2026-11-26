@@ -254,7 +254,7 @@ function UrlSheet() {
     const host = normalizeHost(value);
     const known = host ? dappByHost(host) : undefined;
     setSheet(null);
-    if (known) openDapp(known.id, known.verified ? "site" : "gate");
+    if (known) openDapp(known.id);
     else openExternal(value || "https://unknown.example");
   }
 
