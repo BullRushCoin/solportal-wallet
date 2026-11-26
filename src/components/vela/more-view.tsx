@@ -170,7 +170,7 @@ function CollectiblesPage() {
 }
 
 const SOL_MINT = "So11111111111111111111111111111111111111112";
-const BUY_PRESETS = [10, 25, 50] as const;
+const BUY_PRESETS = [20, 25, 50] as const;
 /** MoonPay: $20 minimum (moonpay.com/buy/sol); per-purchase max depends on the buyer's verification level. */
 const PARTNER_LIMITS: Record<(typeof PARTNERS)[number], { min: number; max: number } | null> = {
   MoonPay: { min: 20, max: 30_000 },
