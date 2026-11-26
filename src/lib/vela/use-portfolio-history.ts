@@ -81,3 +81,17 @@ export function describeChange(history: PortfolioHistory, range: PortfolioRange)
     up,
   };
 }
+
+/** Colors for the portfolio chart when it sits on a balance-card skin. */
+export type ChartTheme = {
+  /** Fixed line color; `null` = gold when up, red when down (Classic). */
+  line: string | null;
+  fillOpacity: number;
+  /** Optional glow so the line separates from busy artwork. */
+  lineShadow: string;
+  tabActiveBg: string;
+  tabActiveFg: string;
+  tabBg: string;
+  tabBorder: string;
+  tabFg: string;
+};

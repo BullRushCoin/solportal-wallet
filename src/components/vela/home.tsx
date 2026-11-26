@@ -74,11 +74,10 @@ function SandboxHome() {
         }}
         amount={formatUsd(total)}
         change={total > 0 ? describeChange(history, range) : null}
+        chart={total > 0 ? (theme) => <PortfolioChart history={history} range={range} onRange={setRange} theme={theme} /> : undefined}
       />
 
-      {total > 0 ? (
-        <PortfolioChart history={history} range={range} onRange={setRange} />
-      ) : (
+      {total > 0 ? null : (
         <button className="mt-3 text-sm text-accent" onClick={restoreSandbox}>
           Restore sandbox balances
         </button>
@@ -230,12 +229,12 @@ function WatchedHome({ address }: { address: string }) {
                 ? describeChange(history, range)
                 : { text: "USD when price data is available", up: null }
         }
+        chart={showChart ? (theme) => <PortfolioChart history={history} range={range} onRange={setRange} theme={theme} /> : undefined}
       />
       {error ? <p className="mt-3 text-sm text-danger">{error}</p> : null}
 
       <WatchBanner address={address} />
 
-      {showChart ? <PortfolioChart history={history} range={range} onRange={setRange} /> : null}
 
       <div className="mt-6 rounded-card border border-line bg-surface p-4 text-sm text-pretty text-muted">
         View only. Send, swap, and stake stay in the sandbox

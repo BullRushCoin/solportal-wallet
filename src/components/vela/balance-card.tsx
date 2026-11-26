@@ -3,6 +3,7 @@ import { Check, ChevronDown, Copy, Palette } from "lucide-react";
 import { CARD_SKINS, resolveCardSkin, type CardSkin } from "@/lib/vela/card-skins";
 import { shortAddr } from "@/lib/vela/format";
 import { useVela } from "@/lib/vela/store";
+import type { ChartTheme } from "@/lib/vela/use-portfolio-history";
 import { Mark, Overlay } from "@/components/vela/ui";
 
 type SkinColors = {
@@ -15,6 +16,7 @@ type SkinColors = {
   scrim: string;
   /** Soft glow behind the big number so it separates from the engraving. */
   halo: string;
+  chart: ChartTheme;
 };
 
 const LIGHT: SkinColors = {
@@ -25,8 +27,18 @@ const LIGHT: SkinColors = {
   chip: "rgb(255 255 255 / 0.55)",
   chipBorder: "rgb(18 18 18 / 0.14)",
   scrim:
-    "linear-gradient(90deg, rgb(236 236 232 / 0.95) 0%, rgb(236 236 232 / 0.85) 42%, rgb(236 236 232 / 0.3) 70%, rgb(236 236 232 / 0) 88%)",
+    "linear-gradient(0deg, rgb(236 236 232 / 0.72) 0%, rgb(236 236 232 / 0.45) 38%, rgb(236 236 232 / 0) 60%), linear-gradient(90deg, rgb(236 236 232 / 0.95) 0%, rgb(236 236 232 / 0.85) 42%, rgb(236 236 232 / 0.3) 70%, rgb(236 236 232 / 0) 88%)",
   halo: "0 0 14px rgb(236 236 232 / 0.9), 0 0 4px rgb(236 236 232 / 0.9)",
+  chart: {
+    line: "#6b4a0c",
+    fillOpacity: 0.16,
+    lineShadow: "drop-shadow(0 0 3px rgb(236 236 232 / 0.95))",
+    tabActiveBg: "#1a1408",
+    tabActiveFg: "#e0b86a",
+    tabBg: "rgb(255 255 255 / 0.55)",
+    tabBorder: "rgb(18 18 18 / 0.16)",
+    tabFg: "rgb(18 18 18 / 0.7)",
+  },
 };
 
 const DARK: SkinColors = {
@@ -37,8 +49,18 @@ const DARK: SkinColors = {
   chip: "rgb(9 9 11 / 0.45)",
   chipBorder: "rgb(244 239 230 / 0.16)",
   halo: "0 1px 12px rgb(9 9 11 / 0.85)",
+  chart: {
+    line: "#f0cd85",
+    fillOpacity: 0.14,
+    lineShadow: "drop-shadow(0 0 4px rgb(9 9 11 / 0.9))",
+    tabActiveBg: "var(--color-accent)",
+    tabActiveFg: "var(--color-on-accent)",
+    tabBg: "rgb(9 9 11 / 0.45)",
+    tabBorder: "rgb(244 239 230 / 0.18)",
+    tabFg: "rgb(244 239 230 / 0.75)",
+  },
   scrim:
-    "linear-gradient(90deg, rgb(9 9 11 / 0.88) 0%, rgb(9 9 11 / 0.7) 42%, rgb(9 9 11 / 0.12) 70%, rgb(9 9 11 / 0) 88%), linear-gradient(0deg, rgb(9 9 11 / 0.35) 0%, rgb(9 9 11 / 0) 40%)",
+    "linear-gradient(90deg, rgb(9 9 11 / 0.88) 0%, rgb(9 9 11 / 0.7) 42%, rgb(9 9 11 / 0.12) 70%, rgb(9 9 11 / 0) 88%), linear-gradient(0deg, rgb(9 9 11 / 0.72) 0%, rgb(9 9 11 / 0.45) 38%, rgb(9 9 11 / 0) 60%)",
 };
 
 const CLASSIC: SkinColors = {
@@ -49,6 +71,16 @@ const CLASSIC: SkinColors = {
   chipBorder: "var(--color-line)",
   scrim: "",
   halo: "none",
+  chart: {
+    line: null,
+    fillOpacity: 0.22,
+    lineShadow: "none",
+    tabActiveBg: "var(--color-accent)",
+    tabActiveFg: "var(--color-on-accent)",
+    tabBg: "transparent",
+    tabBorder: "var(--color-line)",
+    tabFg: "var(--color-muted)",
+  },
 };
 
 function paletteFor(skin: CardSkin): SkinColors {
@@ -69,6 +101,7 @@ export function BalanceCard({
   onCopy,
   amount,
   change,
+  chart,
   footer,
 }: {
   label: string;
@@ -77,6 +110,8 @@ export function BalanceCard({
   amount: ReactNode;
   /** Change line: text plus direction (`null` = neutral/muted). */
   change: { text: string; up: boolean | null } | null;
+  /** Chart + range tabs, drawn inside the card with the skin's colors. */
+  chart?: (theme: ChartTheme) => ReactNode;
   footer?: ReactNode;
 }) {
   const skin = useActiveSkin();
@@ -110,7 +145,7 @@ export function BalanceCard({
         </>
       ) : null}
 
-      <div className="flex h-[244px] flex-col px-5 pt-4 pb-4">
+      <div className={`flex flex-col px-5 pt-4 pb-4 ${chart ? "h-[360px]" : "h-[244px]"}`}>
         <div className="flex items-start justify-between gap-2">
           <button
             type="button"
@@ -158,7 +193,7 @@ export function BalanceCard({
           <Copy className="size-3" style={{ color: colors.muted }} />
         </button>
 
-        <div className="mt-auto">
+        <div className={chart ? "mt-4" : "mt-auto"}>
           <p className="font-mono text-[11px] tracking-[0.2em] uppercase" style={{ color: colors.muted }}>
             Balance
           </p>
@@ -174,10 +209,20 @@ export function BalanceCard({
             </p>
           ) : null}
           {footer}
-          <p className="mt-2 truncate font-mono text-[10px] tracking-wide" style={{ color: colors.muted }}>
-            {label}
-          </p>
+          {chart ? null : (
+            <p className="mt-2 truncate font-mono text-[10px] tracking-wide" style={{ color: colors.muted }}>
+              {label}
+            </p>
+          )}
         </div>
+        {chart ? (
+          <>
+            <div className="mt-auto">{chart(colors.chart)}</div>
+            <p className="mt-2 truncate font-mono text-[10px] tracking-wide" style={{ color: colors.muted }}>
+              {label}
+            </p>
+          </>
+        ) : null}
       </div>
     </section>
   );
