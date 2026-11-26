@@ -9,6 +9,7 @@ import { Blueprint } from "@/components/vela/blueprint";
 import { GhostButton, PrimaryButton, SectionLabel } from "@/components/vela/ui";
 import { Collectibles } from "@/components/vela/home";
 import { StakeView } from "@/components/vela/stake-view";
+import { SupportChat } from "@/components/vela/support-chat";
 import { WatchAddressForm } from "@/components/vela/watch-address";
 import type { NftHolding } from "@/lib/vela/helius-parse";
 
@@ -31,6 +32,7 @@ export function MoreView() {
   if (more === "pro") return <ProPage />;
   if (more === "security") return <SecurityPage />;
   if (more === "blueprint") return <Blueprint embedded />;
+  if (more === "support") return <SupportPage />;
 
   const rows: Array<{ id: MoreRoute; title: string; detail: string }> = [
     { id: "stake", title: "Stake", detail: "SOL into JitoSOL, mSOL, or bSOL" },
@@ -40,6 +42,7 @@ export function MoreView() {
     { id: "sites", title: "Connected sites", detail: "Permissions granted in Explore" },
     { id: "pro", title: "SolPortal Pro", detail: pro ? "Active in this sandbox" : "$9 / month · illustrative" },
     { id: "security", title: "Security", detail: "Phrase, drainer preview, checklist" },
+    { id: "support", title: "Support", detail: "Help bot and contact the team" },
     { id: "blueprint", title: "Flight manual", detail: "Architecture, fees, roadmap" },
   ];
 
@@ -80,6 +83,15 @@ function Back({ title }: { title: string }) {
         Back
       </button>
       <h1 className="text-2xl font-semibold">{title}</h1>
+    </div>
+  );
+}
+
+function SupportPage() {
+  return (
+    <div className="px-5 pt-5 pb-8">
+      <Back title="Support" />
+      <SupportChat />
     </div>
   );
 }

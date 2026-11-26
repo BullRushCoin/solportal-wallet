@@ -49,7 +49,7 @@ export type Revenue = {
 };
 
 export type Tab = "home" | "explore" | "swap" | "activity" | "more";
-export type MoreRoute = "root" | "stake" | "buy" | "sites" | "pro" | "security" | "blueprint" | "collectibles" | "watch";
+export type MoreRoute = "root" | "stake" | "buy" | "sites" | "pro" | "security" | "blueprint" | "collectibles" | "watch" | "support";
 export type Priority = "low" | "fast" | "protect";
 
 export type BrowserState = {
