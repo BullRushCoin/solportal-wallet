@@ -77,7 +77,18 @@ export type Sheet =
   | { kind: "receive" }
   | { kind: "sign"; intent: TxIntent }
   | { kind: "connect"; dappId: string; next: TxIntent | { redirect: "swap" } | null }
-  | { kind: "url" };
+  | { kind: "url" }
+  | { kind: "asset"; token: AssetSheetToken; amount: number; viewOnly?: boolean };
+
+export type AssetSheetToken = {
+  symbol: string;
+  name: string;
+  mint: string;
+  decimals: number;
+  priceUsd: number | null;
+  change24hPct?: number | null;
+  image?: string | null;
+};
 
 type Persisted = {
   wallet: Wallet | null;

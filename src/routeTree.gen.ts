@@ -11,8 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiExploreRouteImport } from './routes/api/explore'
+import { Route as ApiHistoryRouteImport } from './routes/api/history'
 import { Route as ApiIncineratorRouteImport } from './routes/api/incinerator'
 import { Route as ApiMarketRouteImport } from './routes/api/market'
+import { Route as ApiPriceRouteImport } from './routes/api/price'
 import { Route as ApiStakeRouteImport } from './routes/api/stake'
 import { Route as ApiStakeWalletRouteImport } from './routes/api/stake-wallet'
 import { Route as ApiTokenRouteImport } from './routes/api/token'
@@ -28,6 +30,11 @@ const ApiExploreRoute = ApiExploreRouteImport.update({
   path: '/api/explore',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiHistoryRoute = ApiHistoryRouteImport.update({
+  id: '/api/history',
+  path: '/api/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiIncineratorRoute = ApiIncineratorRouteImport.update({
   id: '/api/incinerator',
   path: '/api/incinerator',
@@ -36,6 +43,11 @@ const ApiIncineratorRoute = ApiIncineratorRouteImport.update({
 const ApiMarketRoute = ApiMarketRouteImport.update({
   id: '/api/market',
   path: '/api/market',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPriceRoute = ApiPriceRouteImport.update({
+  id: '/api/price',
+  path: '/api/price',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiStakeRoute = ApiStakeRouteImport.update({
@@ -62,8 +74,10 @@ const ApiWalletRoute = ApiWalletRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/explore': typeof ApiExploreRoute
+  '/api/history': typeof ApiHistoryRoute
   '/api/incinerator': typeof ApiIncineratorRoute
   '/api/market': typeof ApiMarketRoute
+  '/api/price': typeof ApiPriceRoute
   '/api/stake': typeof ApiStakeRoute
   '/api/stake-wallet': typeof ApiStakeWalletRoute
   '/api/token': typeof ApiTokenRoute
@@ -72,8 +86,10 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/explore': typeof ApiExploreRoute
+  '/api/history': typeof ApiHistoryRoute
   '/api/incinerator': typeof ApiIncineratorRoute
   '/api/market': typeof ApiMarketRoute
+  '/api/price': typeof ApiPriceRoute
   '/api/stake': typeof ApiStakeRoute
   '/api/stake-wallet': typeof ApiStakeWalletRoute
   '/api/token': typeof ApiTokenRoute
@@ -83,8 +99,10 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/explore': typeof ApiExploreRoute
+  '/api/history': typeof ApiHistoryRoute
   '/api/incinerator': typeof ApiIncineratorRoute
   '/api/market': typeof ApiMarketRoute
+  '/api/price': typeof ApiPriceRoute
   '/api/stake': typeof ApiStakeRoute
   '/api/stake-wallet': typeof ApiStakeWalletRoute
   '/api/token': typeof ApiTokenRoute
@@ -95,8 +113,10 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/api/explore'
+    | '/api/history'
     | '/api/incinerator'
     | '/api/market'
+    | '/api/price'
     | '/api/stake'
     | '/api/stake-wallet'
     | '/api/token'
@@ -105,8 +125,10 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/api/explore'
+    | '/api/history'
     | '/api/incinerator'
     | '/api/market'
+    | '/api/price'
     | '/api/stake'
     | '/api/stake-wallet'
     | '/api/token'
@@ -115,8 +137,10 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/api/explore'
+    | '/api/history'
     | '/api/incinerator'
     | '/api/market'
+    | '/api/price'
     | '/api/stake'
     | '/api/stake-wallet'
     | '/api/token'
@@ -126,8 +150,10 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiExploreRoute: typeof ApiExploreRoute
+  ApiHistoryRoute: typeof ApiHistoryRoute
   ApiIncineratorRoute: typeof ApiIncineratorRoute
   ApiMarketRoute: typeof ApiMarketRoute
+  ApiPriceRoute: typeof ApiPriceRoute
   ApiStakeRoute: typeof ApiStakeRoute
   ApiStakeWalletRoute: typeof ApiStakeWalletRoute
   ApiTokenRoute: typeof ApiTokenRoute
@@ -150,6 +176,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiExploreRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/history': {
+      id: '/api/history'
+      path: '/api/history'
+      fullPath: '/api/history'
+      preLoaderRoute: typeof ApiHistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/incinerator': {
       id: '/api/incinerator'
       path: '/api/incinerator'
@@ -162,6 +195,13 @@ declare module '@tanstack/react-router' {
       path: '/api/market'
       fullPath: '/api/market'
       preLoaderRoute: typeof ApiMarketRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/price': {
+      id: '/api/price'
+      path: '/api/price'
+      fullPath: '/api/price'
+      preLoaderRoute: typeof ApiPriceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/stake': {
@@ -198,8 +238,10 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiExploreRoute: ApiExploreRoute,
+  ApiHistoryRoute: ApiHistoryRoute,
   ApiIncineratorRoute: ApiIncineratorRoute,
   ApiMarketRoute: ApiMarketRoute,
+  ApiPriceRoute: ApiPriceRoute,
   ApiStakeRoute: ApiStakeRoute,
   ApiStakeWalletRoute: ApiStakeWalletRoute,
   ApiTokenRoute: ApiTokenRoute,

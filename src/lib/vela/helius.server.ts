@@ -1,5 +1,6 @@
 import { TOKENS } from "@/lib/vela/tokens";
 import {
+  asArray,
   asNumber,
   asRecord,
   asString,
@@ -242,6 +243,9 @@ export function clearHeliusCaches(): void {
   marketCache = null;
   walletCache.clear();
   tokenCache.clear();
+  priceCache.clear();
+  historyCache.clear();
+  poolCache.clear();
 }
 
 export type TokenLookup = {
@@ -310,4 +314,92 @@ export async function lookupToken(mint: string): Promise<TokenLookup | null> {
 
   tokenCache.set(mint, { at: now, value: result });
   return result;
+}
+
+// ---------- Live price + chart history for a single coin ----------
+
+export type LivePrice = { mint: string; priceUsd: number | null; change24hPct: number | null; at: number };
+export type PricePoint = { t: number; p: number };
+export type ChartRange = "1H" | "1D" | "1W";
+
+const PRICE_TTL_MS = 4_000;
+const HISTORY_TTL_MS = 120_000;
+const POOL_TTL_MS = 60 * 60_000;
+const GECKO = "https://api.geckoterminal.com/api/v2/networks/solana";
+
+const priceCache = new Map<string, CacheEntry<LivePrice>>();
+const historyCache = new Map<string, CacheEntry<PricePoint[]>>();
+const poolCache = new Map<string, CacheEntry<string | null>>();
+
+export async function loadLivePrice(mint: string): Promise<LivePrice> {
+  const now = Date.now();
+  const cached = priceCache.get(mint);
+  if (cached && now - cached.at < PRICE_TTL_MS) return cached.value;
+  const quotes = await fetchJupiterPrices([mint]);
+  const quote = quotes.find((item) => item.mint === mint);
+  const value: LivePrice = {
+    mint,
+    priceUsd: quote?.priceUsd && quote.priceUsd > 0 ? quote.priceUsd : null,
+    change24hPct: quote?.change24hPct ?? null,
+    at: now,
+  };
+  if (value.priceUsd === null && cached) return cached.value;
+  priceCache.set(mint, { at: now, value });
+  return value;
+}
+
+/** Most-liquid pool for a mint, from GeckoTerminal (free, no key). */
+async function topPoolFor(mint: string): Promise<string | null> {
+  const now = Date.now();
+  const cached = poolCache.get(mint);
+  if (cached && now - cached.at < POOL_TTL_MS) return cached.value;
+  const payload = asRecord(await getJson(`${GECKO}/tokens/${encodeURIComponent(mint)}/pools?page=1`));
+  const pools = asArray(payload?.data)
+    .map((item) => asRecord(asRecord(item)?.attributes))
+    .filter((attrs): attrs is Record<string, unknown> => Boolean(attrs))
+    .map((attrs) => ({ address: asString(attrs.address), liquidity: asNumber(attrs.reserve_in_usd) ?? 0 }))
+    .filter((pool): pool is { address: string; liquidity: number } => Boolean(pool.address))
+    .sort((a, b) => b.liquidity - a.liquidity);
+  const address = pools[0]?.address ?? null;
+  poolCache.set(mint, { at: now, value: address });
+  return address;
+}
+
+const RANGE_QUERY: Record<ChartRange, { timeframe: "minute" | "hour"; aggregate: number; limit: number }> = {
+  "1H": { timeframe: "minute", aggregate: 1, limit: 60 },
+  "1D": { timeframe: "minute", aggregate: 15, limit: 96 },
+  "1W": { timeframe: "hour", aggregate: 1, limit: 168 },
+};
+
+export async function loadPriceHistory(mint: string, range: ChartRange): Promise<PricePoint[]> {
+  const now = Date.now();
+  const key = `${mint}:${range}`;
+  const cached = historyCache.get(key);
+  if (cached && now - cached.at < HISTORY_TTL_MS) return cached.value;
+  try {
+    const pool = await topPoolFor(mint);
+    if (!pool) return [];
+    const { timeframe, aggregate, limit } = RANGE_QUERY[range];
+    const payload = asRecord(
+      await getJson(
+        `${GECKO}/pools/${pool}/ohlcv/${timeframe}?aggregate=${aggregate}&limit=${limit}&currency=usd&token=${encodeURIComponent(mint)}`,
+      ),
+    );
+    const list = asArray(asRecord(asRecord(payload?.data)?.attributes)?.ohlcv_list);
+    const points = list
+      .map((row) => {
+        const cells = asArray(row);
+        const t = asNumber(cells[0]);
+        const close = asNumber(cells[4]);
+        return t !== null && close !== null && close > 0 ? { t: t * 1000, p: close } : null;
+      })
+      .filter((point): point is PricePoint => point !== null)
+      .sort((a, b) => a.t - b.t);
+    historyCache.set(key, { at: now, value: points });
+    return points;
+  } catch {
+    // Rate limited or unknown token: serve stale history if we have it, else an empty series
+    // (the client still draws a live chart from its own polling).
+    return cached?.value ?? [];
+  }
 }

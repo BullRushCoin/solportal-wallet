@@ -100,7 +100,21 @@ function SandboxHome() {
                 usd={amount * price}
                 change24hPct={quote?.change24hPct ?? null}
                 token2022={token.standard === "token-2022"}
-                onClick={() => openSwap(token.symbol)}
+                onClick={() =>
+                  setSheet({
+                    kind: "asset",
+                    amount,
+                    token: {
+                      symbol: token.symbol,
+                      name: token.name,
+                      mint: token.mint,
+                      decimals: token.decimals,
+                      priceUsd: price,
+                      change24hPct: quote?.change24hPct ?? null,
+                      image: quote?.image ?? null,
+                    },
+                  })
+                }
               />
             );
           })
@@ -231,15 +245,17 @@ function WatchedHome({ address }: { address: string }) {
               usd={token.valueUsd ?? (token.priceUsd !== null ? token.amount * token.priceUsd : null)}
               change24hPct={token.change24hPct}
               onClick={() =>
-                openSwap({
-                  input: token.symbol,
-                  output: token.symbol === "USDC" ? "SOL" : "USDC",
+                setSheet({
+                  kind: "asset",
+                  amount: token.amount,
+                  viewOnly: true,
                   token: {
                     symbol: token.symbol,
                     name: token.name,
                     mint: token.mint,
                     decimals: token.decimals,
                     priceUsd: token.priceUsd,
+                    change24hPct: token.change24hPct,
                     image: token.image,
                   },
                 })
@@ -299,7 +315,7 @@ function AssetSearch({ value, onChange }: { value: string; onChange: (value: str
 
 /** When the search box holds a mint address the wallet doesn't hold, look the coin up live. */
 function TokenAddressResult({ query, knownMints }: { query: string; knownMints: string[] }) {
-  const openSwap = useVela((state) => state.openSwap);
+  const setSheet = useVela((state) => state.setSheet);
   const mint = query.trim();
   const shouldLookup = isSolanaAddress(mint) && !knownMints.includes(mint);
   const [state, setState] = useState<{ mint: string; token: TokenLookup | null; error: string; loading: boolean }>({
@@ -344,20 +360,7 @@ function TokenAddressResult({ query, knownMints }: { query: string; knownMints: 
       amount={0}
       usd={token.priceUsd}
       change24hPct={token.change24hPct}
-      onClick={() =>
-        openSwap({
-          input: token.symbol === "USDC" ? "SOL" : "USDC",
-          output: token.symbol,
-          token: {
-            symbol: token.symbol,
-            name: token.name,
-            mint: token.mint,
-            decimals: token.decimals,
-            priceUsd: token.priceUsd,
-            image: token.image,
-          },
-        })
-      }
+      onClick={() => setSheet({ kind: "asset", amount: 0, token })}
     />
   );
 }
