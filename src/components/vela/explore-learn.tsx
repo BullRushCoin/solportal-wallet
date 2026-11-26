@@ -68,30 +68,35 @@ export function LearnCard() {
           <span className="text-xs text-fg/70">{TIPS.length} quick tips · 2 min read</span>
         </span>
       </button>
-      {open ? (
-        <Overlay label="SolPortal guide" onClose={() => setOpen(false)}>
-          <p className="font-mono text-[10px] tracking-widest text-accent uppercase">SolPortal guide</p>
-          <h2 className="mt-1 text-2xl font-semibold tracking-tight">Protect and grow your crypto</h2>
-          <ol className="mt-4 space-y-3">
-            {TIPS.map((tip, i) => {
-              const Icon = tip.icon;
-              return (
-                <li key={tip.title} className="flex gap-3 rounded-control border border-line bg-surface-2/60 p-3.5">
-                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-accent/15 text-accent">
-                    <Icon className="size-4" aria-hidden />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-sm font-semibold">
-                      {i + 1}. {tip.title}
-                    </span>
-                    <span className="mt-1 block text-sm leading-relaxed text-muted">{tip.body}</span>
-                  </span>
-                </li>
-              );
-            })}
-          </ol>
-        </Overlay>
-      ) : null}
+      {open ? <LearnGuide onClose={() => setOpen(false)} /> : null}
     </section>
+  );
+}
+
+/** The SolPortal guide sheet: shared by the Explore Learn card and the More tab. */
+export function LearnGuide({ onClose }: { onClose: () => void }) {
+  return (
+    <Overlay label="SolPortal guide" onClose={onClose}>
+      <p className="font-mono text-[10px] tracking-widest text-accent uppercase">SolPortal guide</p>
+      <h2 className="mt-1 text-2xl font-semibold tracking-tight">Protect and grow your crypto</h2>
+      <ol className="mt-4 space-y-3">
+        {TIPS.map((tip, i) => {
+          const Icon = tip.icon;
+          return (
+            <li key={tip.title} className="flex gap-3 rounded-control border border-line bg-surface-2/60 p-3.5">
+              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-accent/15 text-accent">
+                <Icon className="size-4" aria-hidden />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold">
+                  {i + 1}. {tip.title}
+                </span>
+                <span className="mt-1 block text-sm leading-relaxed text-muted">{tip.body}</span>
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </Overlay>
   );
 }

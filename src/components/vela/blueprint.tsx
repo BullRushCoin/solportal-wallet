@@ -46,7 +46,6 @@ const CHECKS = [
 ];
 
 export function Blueprint({ embedded = false }: { embedded?: boolean }) {
-  const setMore = useVela((state) => state.setMore);
   const revenue = useVela((state) => state.revenue);
   const [code, setCode] = useState<"quote" | "swap" | "bridge">("quote");
   const sol = tokenBySymbol("SOL");
@@ -69,14 +68,8 @@ export function Blueprint({ embedded = false }: { embedded?: boolean }) {
   });
 
   return (
-    <article className={`px-5 pt-5 pb-16 ${embedded ? "" : "mx-auto max-w-3xl"}`}>
-      {embedded ? (
-        <button className="mb-3 h-11 text-sm text-muted" onClick={() => setMore("root")}>
-          Back
-        </button>
-      ) : (
-        <p className="font-mono text-xs tracking-widest text-accent uppercase">Flight manual</p>
-      )}
+    <article className={`px-5 pb-16 ${embedded ? "pt-4" : "mx-auto max-w-3xl pt-5"}`}>
+      {embedded ? null : <p className="font-mono text-xs tracking-widest text-accent uppercase">Flight manual</p>}
       <h1 className="text-4xl font-semibold tracking-tight text-balance">SolPortal, built as a wallet that can actually charge.</h1>
       <p className="mt-4 text-base leading-relaxed text-pretty text-muted">
         Non-custodial Solana wallet. The phone holds the keys. Jupiter collects the swap fee. Explore sells attention. The sandbox on the left is the MVP surface — it does not broadcast.

@@ -12,7 +12,7 @@ const FILTERS: Array<{ id: "all" | ActivityKind; label: string }> = [
   { id: "incinerate", label: "Burn" },
 ];
 
-export function ActivityView() {
+export function ActivityView({ hideTitle = false }: { hideTitle?: boolean }) {
   const activity = useVela((state) => state.activity);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["id"]>("all");
   const rows = activity.filter((item) => {
@@ -22,9 +22,9 @@ export function ActivityView() {
   });
 
   return (
-    <div className="px-5 pt-5 pb-6">
-      <h1 className="text-3xl font-semibold tracking-tight">Activity</h1>
-      <p className="mt-2 text-sm text-muted">Simulated history. Nothing here is a mainnet signature.</p>
+    <div className={`px-5 pb-6 ${hideTitle ? "pt-4" : "pt-5"}`}>
+      {hideTitle ? null : <h1 className="text-3xl font-semibold tracking-tight">Activity</h1>}
+      <p className={`${hideTitle ? "" : "mt-2 "}text-sm text-muted`}>Simulated history. Nothing here is a mainnet signature.</p>
       <div className="mt-4 flex gap-2 overflow-x-auto">
         {FILTERS.map((item) => (
           <button

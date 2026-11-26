@@ -18,7 +18,6 @@ import { PrimaryButton, SectionLabel, TokenMark } from "@/components/vela/ui";
 type Mode = "lst-stake" | "lst-unstake" | "native-stake";
 
 export function StakeView() {
-  const setMore = useVela((state) => state.setMore);
   const wallet = useVela((state) => state.wallet);
   const watchAddress = useVela((state) => state.watchAddress);
   const holdings = useVela((state) => state.holdings);
@@ -199,13 +198,7 @@ export function StakeView() {
   );
 
   return (
-    <div className="px-5 pt-5 pb-8">
-      <div className="mb-4 flex items-center gap-2">
-        <button className="h-11 px-1 text-sm text-muted" onClick={() => setMore("root")}>
-          Back
-        </button>
-        <h1 className="text-2xl font-semibold">Stake</h1>
-      </div>
+    <div className="px-5 pt-4 pb-8">
       <p className="text-sm text-pretty text-muted">
         Live APYs and TVL come from public stake APIs. Every stake or unstake in this app is <span className="text-fg">simulated</span> — no keys, nothing broadcasts, nothing is collected.
       </p>

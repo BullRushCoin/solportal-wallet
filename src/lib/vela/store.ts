@@ -58,7 +58,19 @@ export type Revenue = {
 };
 
 export type Tab = "home" | "explore" | "swap" | "market" | "more";
-export type MoreRoute = "root" | "activity" | "stake" | "buy" | "sites" | "pro" | "security" | "blueprint" | "collectibles" | "watch" | "support";
+export type MoreRoute =
+  | "root"
+  | "activity"
+  | "stake"
+  | "buy"
+  | "sites"
+  | "pro"
+  | "security"
+  | "blueprint"
+  | "collectibles"
+  | "watch"
+  | "support"
+  | "revenue";
 export type Priority = "low" | "fast" | "protect";
 
 export type BrowserState = {
