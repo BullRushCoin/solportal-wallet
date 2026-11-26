@@ -9,6 +9,7 @@ import { holdingValueUsd, isDeadCoin } from "@/lib/vela/incinerator";
 import { holdingsUsd, TOKENS } from "@/lib/vela/tokens";
 import { useMarket } from "@/lib/vela/use-market";
 import { SectionLabel, TokenMark, Mark } from "@/components/vela/ui";
+import { Sparkline } from "@/components/vela/sparkline";
 import { IncineratorCard } from "@/components/vela/incinerator-card";
 
 export function HomeView() {
@@ -93,6 +94,7 @@ function SandboxHome() {
             return (
               <AssetRow
                 key={token.symbol}
+                mint={token.mint}
                 symbol={token.symbol}
                 name={token.name}
                 image={quote?.image}
@@ -238,6 +240,7 @@ function WatchedHome({ address }: { address: string }) {
           rows.map((token) => (
             <AssetRow
               key={token.mint}
+              mint={token.mint}
               symbol={token.symbol}
               name={token.name}
               image={token.image}
@@ -354,6 +357,7 @@ function TokenAddressResult({ query, knownMints }: { query: string; knownMints: 
   const token = state.token;
   return (
     <AssetRow
+      mint={token.mint}
       symbol={token.symbol}
       name={`${token.name} · ${shortAddr(token.mint)}`}
       image={token.image}
@@ -434,6 +438,7 @@ function ChangeLine({ change, live }: { change: number | null; live: boolean }) 
 }
 
 function AssetRow({
+  mint,
   symbol,
   name,
   image,
@@ -443,6 +448,7 @@ function AssetRow({
   token2022,
   onClick,
 }: {
+  mint?: string;
   symbol: string;
   name: string;
   image?: string | null;
@@ -465,7 +471,8 @@ function AssetRow({
         </div>
         <p className="truncate text-xs text-muted">{name}</p>
       </div>
-      <div className="text-right">
+      {mint ? <Sparkline mint={mint} /> : null}
+      <div className="min-w-[5.5rem] text-right">
         <p className="tabular-nums">{formatAmt(amount, symbol === "BONK" ? 0 : 4)}</p>
         <p className="text-xs text-muted tabular-nums">{usd === null ? "—" : formatUsd(usd)}</p>
         {change24hPct !== null ? (
