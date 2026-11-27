@@ -18,6 +18,8 @@ import {
   MINT_SIZE,
   TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountIdempotentInstruction,
+  createBurnCheckedInstruction,
+  createCloseAccountInstruction,
   createInitializeMint2Instruction,
   createMintToInstruction,
   createSetAuthorityInstruction,
@@ -221,4 +223,124 @@ export type DevnetTx = { signature: string; at: number | null; ok: boolean };
 export async function recentTxs(owner: PublicKey): Promise<DevnetTx[]> {
   const list = await conn().getSignaturesForAddress(owner, { limit: 6 });
   return list.map((item) => ({ signature: item.signature, at: item.blockTime ? item.blockTime * 1000 : null, ok: !item.err }));
+}
+
+/* ---------------- Devnet Incinerator ---------------- */
+
+const JUNK_STORE = "solportal-devnet-junk-v1";
+const JUNK_NAMES = ["RUGGED", "DUSTY", "GHOST", "BONKLESS", "FROGZ", "AIRDROPX"];
+const RENT_EXEMPT_MIN_LAMPORTS = 890_880;
+
+export type JunkAccount = {
+  account: string;
+  mint: string;
+  symbol: string;
+  amountRaw: string;
+  uiAmount: number;
+  decimals: number;
+  rentLamports: number;
+};
+
+function junkNames(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(JUNK_STORE) ?? "{}") as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+
+/** Creates three junk tokens: two with worthless dust, one empty account. Real devnet accounts. */
+export async function makeJunk(payer: Keypair): Promise<string> {
+  const mintRent = await conn().getMinimumBalanceForRentExemption(MINT_SIZE);
+  const names = junkNames();
+  const used = Object.keys(names).length;
+  const mints = [Keypair.generate(), Keypair.generate(), Keypair.generate()];
+  const ixs: TransactionInstruction[] = [];
+  mints.forEach((mint, i) => {
+    const ata = getAssociatedTokenAddressSync(mint.publicKey, payer.publicKey);
+    ixs.push(
+      SystemProgram.createAccount({
+        fromPubkey: payer.publicKey,
+        newAccountPubkey: mint.publicKey,
+        space: MINT_SIZE,
+        lamports: mintRent,
+        programId: TOKEN_PROGRAM_ID,
+      }),
+      createInitializeMint2Instruction(mint.publicKey, 6, payer.publicKey, null),
+      createAssociatedTokenAccountIdempotentInstruction(payer.publicKey, ata, payer.publicKey, mint.publicKey),
+    );
+    // Third one stays empty: just an account holding rent.
+    if (i < 2) ixs.push(createMintToInstruction(mint.publicKey, ata, payer.publicKey, Math.floor(1_000 + Math.random() * 90_000_000)));
+    names[mint.publicKey.toBase58()] = JUNK_NAMES[(used + i) % JUNK_NAMES.length]!;
+  });
+  const signature = await sendIx(payer, ixs, mints);
+  localStorage.setItem(JUNK_STORE, JSON.stringify(names));
+  return signature;
+}
+
+/** Every token account that isn't an NFT: dust and empty accounts, each holding ~0.002 SOL of rent. */
+export async function scanJunk(owner: PublicKey): Promise<JunkAccount[]> {
+  const { value } = await conn().getParsedTokenAccountsByOwner(owner, { programId: TOKEN_PROGRAM_ID });
+  const names = junkNames();
+  const out: JunkAccount[] = [];
+  for (const item of value) {
+    const info = (item.account.data as {
+      parsed?: { info?: { mint?: string; tokenAmount?: { decimals?: number; amount?: string; uiAmount?: number | null } } };
+    }).parsed?.info;
+    const amount = info?.tokenAmount;
+    if (!info?.mint || !amount) continue;
+    const decimals = amount.decimals ?? 0;
+    if (decimals === 0 && amount.amount === "1") continue; // NFT: keep
+    out.push({
+      account: item.pubkey.toBase58(),
+      mint: info.mint,
+      symbol: names[info.mint] ?? `${info.mint.slice(0, 4)}…`,
+      amountRaw: amount.amount ?? "0",
+      uiAmount: amount.uiAmount ?? 0,
+      decimals,
+      rentLamports: item.account.lamports,
+    });
+  }
+  return out;
+}
+
+export type IncinerateResult = { signatures: string[]; reclaimedSol: number; feeSol: number; feeSkipped: boolean };
+
+/** Burns any dust, closes each account (rent back to the wallet), and pays the SolPortal fee on reclaimed rent. */
+export async function incinerate(payer: Keypair, items: JunkAccount[], feeBps: number, feeWallet: string): Promise<IncinerateResult> {
+  const rentLamports = items.reduce((sum, item) => sum + item.rentLamports, 0);
+  let feeLamports = Math.floor((rentLamports * feeBps) / 10_000);
+  let feeSkipped = false;
+  if (feeLamports > 0) {
+    const feeBalance = await conn().getBalance(new PublicKey(feeWallet));
+    // A brand-new system account needs ~0.00089 SOL to exist; skip a smaller first fee on devnet.
+    if (feeBalance === 0 && feeLamports < RENT_EXEMPT_MIN_LAMPORTS) {
+      feeLamports = 0;
+      feeSkipped = true;
+    }
+  }
+  const signatures: string[] = [];
+  const BATCH = 6;
+  for (let i = 0; i < items.length; i += BATCH) {
+    const chunk = items.slice(i, i + BATCH);
+    const ixs: TransactionInstruction[] = [];
+    for (const item of chunk) {
+      const account = new PublicKey(item.account);
+      const mint = new PublicKey(item.mint);
+      if (item.amountRaw !== "0") {
+        ixs.push(createBurnCheckedInstruction(account, mint, payer.publicKey, BigInt(item.amountRaw), item.decimals));
+      }
+      ixs.push(createCloseAccountInstruction(account, payer.publicKey, payer.publicKey));
+    }
+    if (i + BATCH >= items.length && feeLamports > 0) {
+      ixs.push(SystemProgram.transfer({ fromPubkey: payer.publicKey, toPubkey: new PublicKey(feeWallet), lamports: feeLamports }));
+    }
+    signatures.push(await sendIx(payer, ixs));
+  }
+  return {
+    signatures,
+    reclaimedSol: (rentLamports - feeLamports) / LAMPORTS_PER_SOL,
+    feeSol: feeLamports / LAMPORTS_PER_SOL,
+    feeSkipped,
+  };
 }

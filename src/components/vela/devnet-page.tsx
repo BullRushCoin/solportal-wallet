@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Keypair } from "@solana/web3.js";
-import { Copy, Droplets, ExternalLink, FlaskConical, ImagePlus, RefreshCw, Send } from "lucide-react";
+import { Copy, Droplets, ExternalLink, Flame, FlaskConical, ImagePlus, RefreshCw, Send } from "lucide-react";
 import {
   airdrop,
   balanceSol,
   createKeypair,
   explorerAccount,
   explorerTx,
+  incinerate,
+  makeJunk,
+  scanJunk,
+  type JunkAccount,
   faucetEnabled,
   PUBLIC_FAUCET,
   isValidAddress,
@@ -21,13 +25,15 @@ import {
   type DevnetTx,
 } from "@/lib/vela/devnet";
 import { formatAmt, shortAddr } from "@/lib/vela/format";
+import { incineratorFeeBps } from "@/lib/vela/incinerator";
+import { feeWalletAddress } from "@/lib/vela/fee-wallet";
 import { useVela } from "@/lib/vela/store";
 import { PageBar } from "@/components/vela/more-ui";
 import { DangerButton, GhostButton, PrimaryButton, SectionLabel } from "@/components/vela/ui";
 
 const NETWORK_FEE = 0.000005;
 
-type Busy = null | "airdrop" | "send" | "mint" | "nft";
+type Busy = null | "airdrop" | "send" | "mint" | "nft" | "junk" | "burn";
 
 function errText(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
@@ -44,6 +50,9 @@ export default function DevnetPage() {
   const [balance, setBalance] = useState<number | null>(null);
   const [nfts, setNfts] = useState<DevnetNft[]>([]);
   const [txs, setTxs] = useState<DevnetTx[]>([]);
+  const [junk, setJunk] = useState<JunkAccount[]>([]);
+  const [burnAsk, setBurnAsk] = useState(false);
+  const [burnResult, setBurnResult] = useState<string | null>(null);
   const [busy, setBusy] = useState<Busy>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastSig, setLastSig] = useState<string | null>(null);
@@ -63,8 +72,14 @@ export default function DevnetPage() {
 
   const refresh = useCallback(async (kp: Keypair) => {
     try {
-      const [bal, list, recent] = await Promise.all([balanceSol(kp.publicKey), listNfts(kp.publicKey), recentTxs(kp.publicKey)]);
+      const [bal, list, recent, dust] = await Promise.all([
+        balanceSol(kp.publicKey),
+        listNfts(kp.publicKey),
+        recentTxs(kp.publicKey),
+        scanJunk(kp.publicKey),
+      ]);
       setBalance(bal);
+      setJunk(dust);
       setNfts(list);
       setTxs(recent);
     } catch (e) {
@@ -131,6 +146,7 @@ export default function DevnetPage() {
   const value = Number(amount);
   const canSend = isValidAddress(to) && value > 0 && balance !== null && value + NETWORK_FEE <= balance;
   const nftTarget = mode && typeof mode === "object" ? mode.nft : null;
+  const feeBps = incineratorFeeBps();
 
   return (
     <div>
@@ -262,6 +278,30 @@ export default function DevnetPage() {
           </div>
         ) : null}
 
+        <IncineratorSection
+          junk={junk}
+          busy={busy}
+          ask={burnAsk}
+          result={burnResult}
+          onAsk={setBurnAsk}
+          onMakeJunk={() => void run("junk", () => makeJunk(keypair), "3 junk tokens created")}
+          onBurn={() =>
+            void run(
+              "burn",
+              async () => {
+                const res = await incinerate(keypair, junk, feeBps, feeWalletAddress());
+                setBurnAsk(false);
+                setBurnResult(
+                  `Reclaimed ${formatAmt(res.reclaimedSol, 6)} SOL` +
+                    (res.feeSkipped ? " · fee skipped on devnet" : res.feeSol > 0 ? ` · ${formatAmt(res.feeSol, 6)} SOL fee to SolPortal` : ""),
+                );
+                return res.signatures[res.signatures.length - 1]!;
+              },
+              "Incinerated. Rent is back in your wallet.",
+            )
+          }
+        />
+
         <div className="mt-8 flex items-center justify-between">
           <SectionLabel>Devnet NFTs</SectionLabel>
           <button
@@ -344,6 +384,81 @@ export default function DevnetPage() {
             </button>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function IncineratorSection({
+  junk,
+  busy,
+  ask,
+  result,
+  onAsk,
+  onMakeJunk,
+  onBurn,
+}: {
+  junk: JunkAccount[];
+  busy: Busy;
+  ask: boolean;
+  result: string | null;
+  onAsk: (value: boolean) => void;
+  onMakeJunk: () => void;
+  onBurn: () => void;
+}) {
+  const feeBps = incineratorFeeBps();
+  const rentSol = junk.reduce((sum, item) => sum + item.rentLamports, 0) / 1e9;
+  const feeSol = (rentSol * feeBps) / 10_000;
+  return (
+    <div className="mt-8">
+      <div className="flex items-center justify-between">
+        <SectionLabel>Devnet Incinerator</SectionLabel>
+        <button type="button" disabled={busy !== null} onClick={onMakeJunk} className="text-sm text-accent disabled:opacity-50">
+          {busy === "junk" ? "Creating…" : "Make junk tokens"}
+        </button>
+      </div>
+      <div className="mt-3 rounded-card border border-line bg-surface p-4">
+        {junk.length === 0 ? (
+          <p className="text-sm text-muted">
+            No junk in this wallet. Tap Make junk tokens to create dust and an empty account, then burn them for real.
+          </p>
+        ) : (
+          <>
+            <ul className="divide-y divide-line">
+              {junk.map((item) => (
+                <li key={item.account} className="flex items-center justify-between py-2 text-sm">
+                  <span className="font-medium">{item.symbol}</span>
+                  <span className="text-xs text-muted tabular-nums">
+                    {item.amountRaw === "0" ? "Empty account" : `${formatAmt(item.uiAmount, 2)} dust`} · {formatAmt(item.rentLamports / 1e9, 5)} SOL rent
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-3 space-y-0.5 text-sm">
+              <p>Rent locked {formatAmt(rentSol, 6)} SOL</p>
+              <p className="text-muted">Fee {formatAmt(feeSol, 6)} SOL ({feeBps / 100}%) to SolPortal</p>
+              <p className="font-medium text-accent">You get back about {formatAmt(rentSol - feeSol, 6)} SOL</p>
+            </div>
+            {ask ? (
+              <div className="mt-3">
+                <p className="text-xs text-muted">Burns the dust and closes {junk.length} accounts on devnet. This is final.</p>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <GhostButton disabled={busy !== null} onClick={() => onAsk(false)}>Cancel</GhostButton>
+                  <DangerButton disabled={busy !== null} onClick={onBurn}>
+                    {busy === "burn" ? "Burning…" : "Sign & burn"}
+                  </DangerButton>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-3">
+                <PrimaryButton disabled={busy !== null} onClick={() => onAsk(true)}>
+                  <Flame className="mr-1.5 size-4" /> Incinerate {junk.length} account{junk.length === 1 ? "" : "s"}
+                </PrimaryButton>
+              </div>
+            )}
+          </>
+        )}
+        {result ? <p className="mt-3 text-sm text-accent">{result}</p> : null}
       </div>
     </div>
   );
