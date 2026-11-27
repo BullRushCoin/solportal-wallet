@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { isSolanaAddress } from "@/lib/vela/address";
 import { loadPriceHistory, type ChartRange } from "@/lib/vela/helius.server";
 
-const RANGES: ChartRange[] = ["1H", "1D", "1W"];
+const RANGES: ChartRange[] = ["1H", "1D", "1W", "1M", "1Y"];
 
 export const Route = createFileRoute("/api/history")({
   server: {

@@ -8,10 +8,10 @@ import { useVela, type AssetSheetToken } from "@/lib/vela/store";
 import { Overlay, TokenMark } from "@/components/vela/ui";
 import { WatchStar } from "@/components/vela/watch-star";
 
-type Range = "1H" | "1D" | "1W";
+type Range = "1H" | "1D" | "1W" | "1M" | "1Y";
 type Point = { t: number; p: number };
 
-const RANGES: Range[] = ["1H", "1D", "1W"];
+const RANGES: Range[] = ["1H", "1D", "1W", "1M", "1Y"];
 const POLL_MS = 5_000;
 const MAX_LIVE_POINTS = 240;
 
@@ -33,6 +33,8 @@ function splitPrice(value: number): { whole: string; frac: string } {
 function timeLabel(t: number, range: Range): string {
   const d = new Date(t);
   if (range === "1W") return d.toLocaleString("en-US", { weekday: "short", hour: "numeric" });
+  if (range === "1M") return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric" });
+  if (range === "1Y") return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
