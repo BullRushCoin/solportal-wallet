@@ -153,6 +153,13 @@ export const STARTER_NFTS: Nft[] = [
   { id: "night-7", name: "Harbor Light #7", collection: "Harbor", pattern: "nft-night" },
 ];
 
+/** NFTs the sandbox can "receive" from a friend, one at a time, for the demo. */
+export const INCOMING_NFTS: Nft[] = [
+  { id: "lantern-19", name: "Lantern Knight #19", collection: "Lantern Order", pattern: "nft-night", image: "/nfts/lantern.webp" },
+  { id: "portal-311", name: "Portal Gate #311", collection: "SolPortal Gates", pattern: "nft-market", image: "/nfts/portal.webp" },
+  { id: "crown-8", name: "Crowned Skull #8", collection: "Dead Kings", pattern: "nft-keel", image: "/nfts/crown.webp" },
+];
+
 /**
  * A token the sandbox learned about at runtime (e.g. bought through Swap by mint).
  * `symbol` is the holdings key and is unique in the wallet; on a clash with a known

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
+  ArrowDownLeft,
   ArrowLeftRight,
+  ArrowUpRight,
   BookOpen,
   ChartNoAxesCombined,
   Check,
@@ -37,6 +39,7 @@ import { IconTile, PageBar, SettingsGroup, SettingsRow, type Tone } from "@/comp
 import { AccountAvatar } from "@/components/vela/wallets-sheet";
 import { GhostButton, Mark, Overlay, PrimaryButton, SectionLabel } from "@/components/vela/ui";
 import { Collectibles } from "@/components/vela/home";
+import { NftArt } from "@/components/vela/sheets";
 import { StakeView } from "@/components/vela/stake-view";
 import { SupportChat } from "@/components/vela/support-chat";
 import { WatchAddressForm } from "@/components/vela/watch-address";
@@ -438,6 +441,7 @@ function WatchWalletPage() {
 
 function CollectiblesPage() {
   const nfts = useVela((state) => state.nfts);
+  const setSheet = useVela((state) => state.setSheet);
   const watchAddress = useVela((state) => state.watchAddress);
   const [watched, setWatched] = useState<NftHolding[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -479,10 +483,36 @@ function CollectiblesPage() {
 
   return (
     <SubPage title="Collectibles">
-      <p className="mb-2 text-sm text-pretty text-muted">
-        Collectibles used to live on Home. They moved here so Home can show the incinerator instead.
-      </p>
-      <Collectibles items={items} empty={loading ? "Loading collectibles…" : "No NFTs in this wallet."} />
+      {watchAddress ? (
+        <Collectibles items={items} empty={loading ? "Loading collectibles…" : "No NFTs in this wallet."} />
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            <PrimaryButton onClick={() => setSheet(items.length ? { kind: "nft", id: items[0]!.id } : { kind: "receive" })}>
+              <ArrowUpRight className="mr-1.5 size-4" /> Send
+            </PrimaryButton>
+            <GhostButton onClick={() => setSheet({ kind: "receive" })}>
+              <ArrowDownLeft className="mr-1.5 size-4" /> Receive
+            </GhostButton>
+          </div>
+          <p className="mt-2 text-xs text-muted">Tap an NFT to send it.</p>
+          {items.length === 0 ? (
+            <p className="mt-6 text-center text-sm text-muted">No NFTs yet. Tap Receive to get one.</p>
+          ) : (
+            <ul className="mt-4 grid grid-cols-2 gap-3">
+              {items.map((nft) => (
+                <li key={nft.id}>
+                  <button type="button" className="w-full text-left" onClick={() => setSheet({ kind: "nft", id: nft.id })}>
+                    <NftArt nft={nft} className="aspect-square w-full rounded-card" />
+                    <p className="mt-2 truncate text-sm font-medium">{nft.name}</p>
+                    <p className="truncate text-xs text-muted">{nft.collection}</p>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
     </SubPage>
   );
 }

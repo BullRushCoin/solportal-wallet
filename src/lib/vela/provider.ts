@@ -51,6 +51,7 @@ export type TxIntent = IntentBase &
         outputToken?: CustomToken;
       }
     | { kind: "send"; symbol: string; amount: number; to: string }
+    | { kind: "send-nft"; nft: Nft; to: string }
     | {
         kind: "stake";
         from: string;

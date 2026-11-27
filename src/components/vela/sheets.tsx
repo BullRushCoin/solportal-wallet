@@ -23,6 +23,7 @@ export function Sheets() {
   if (sheet.kind === "add-wallet") return <AddWalletSheet />;
   if (sheet.kind === "card-skin") return <CardSkinSheet />;
   if (sheet.kind === "backup") return <BackupSheet />;
+  if (sheet.kind === "nft") return <NftSheet id={sheet.id} />;
   if (sheet.kind === "asset") return <AssetSheet key={sheet.token.mint} token={sheet.token} amount={sheet.amount} viewOnly={sheet.viewOnly} />;
   return null;
 }
@@ -73,8 +74,22 @@ function SignSheet({ intent }: { intent: TxIntent }) {
         </ul>
       ) : null}
 
+      {intent.kind === "send-nft" ? (
+        <div className="mt-4 flex items-center gap-3 rounded-control border border-line px-3 py-3">
+          <NftArt nft={intent.nft} className="size-14 shrink-0 rounded-control" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-medium">{intent.nft.name}</p>
+            <p className="truncate text-xs text-muted">{intent.nft.collection}</p>
+          </div>
+          <span className="text-sm text-danger tabular-nums">−1</span>
+        </div>
+      ) : null}
+      {intent.kind === "send-nft" ? (
+        <p className="mt-2 rounded-control bg-bg px-3 py-2 font-mono text-xs break-all text-muted">To {intent.to}</p>
+      ) : null}
+
       <div className="mt-4 space-y-2">
-        {intent.kind === "incinerate" ? (
+        {intent.kind === "send-nft" ? null : intent.kind === "incinerate" ? (
           <div className="rounded-control border border-line px-3 py-3 text-sm">
             <p>Rent {formatAmt(intent.rentSol, 6)} SOL</p>
             <p className="mt-1">Swaps {formatAmt(intent.swapSol, 6)} SOL</p>
@@ -146,6 +161,7 @@ function SignSheet({ intent }: { intent: TxIntent }) {
 
 function ReceiveSheet() {
   const wallet = useVela((state) => state.wallet);
+  const receiveNft = useVela((state) => state.receiveNft);
   const setSheet = useVela((state) => state.setSheet);
   const setToast = useVela((state) => state.setToast);
   const address = wallet?.address ?? "";
@@ -174,12 +190,17 @@ function ReceiveSheet() {
           Copy address
         </PrimaryButton>
       </div>
+      <p className="mt-4 text-center text-xs text-muted">Works for SOL, tokens and NFTs.</p>
+      <div className="mt-2">
+        <GhostButton onClick={receiveNft}>Simulate a friend sending you an NFT</GhostButton>
+      </div>
     </Overlay>
   );
 }
 
 function SendSheet() {
   const holdings = useVela((state) => state.holdings);
+  const setMore = useVela((state) => state.setMore);
   const priority = useVela((state) => state.priority);
   const setSheet = useVela((state) => state.setSheet);
   const [symbol, setSymbol] = useState("SOL");
@@ -210,7 +231,19 @@ function SendSheet() {
 
   return (
     <Overlay label="Send" onClose={() => setSheet(null)}>
-      <h2 className="text-xl font-semibold">Send</h2>
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="text-xl font-semibold">Send</h2>
+        <button
+          type="button"
+          className="text-sm text-accent"
+          onClick={() => {
+            setSheet(null);
+            setMore("collectibles");
+          }}
+        >
+          Send an NFT
+        </button>
+      </div>
       <div className="mt-3 flex gap-2 overflow-x-auto">
         {walletTokens().filter((item) => (holdings[item.symbol] ?? 0) > 0).map((item) => (
           <button
@@ -313,6 +346,80 @@ function ConnectSheet({ dappId, next }: { dappId: string; next: TxIntent | { red
           Connect
         </PrimaryButton>
       </div>
+    </Overlay>
+  );
+}
+
+export function NftArt({ nft, className }: { nft: { image?: string | null; pattern?: string }; className?: string }) {
+  return nft.image ? (
+    <img src={nft.image} alt="" className={`border border-line object-cover ${className ?? ""}`} />
+  ) : (
+    <div className={`border border-line ${nft.pattern ?? "bg-surface-2"} ${className ?? ""}`} />
+  );
+}
+
+function NftSheet({ id }: { id: string }) {
+  const nft = useVela((state) => state.nfts.find((item) => item.id === id) ?? null);
+  const watching = useVela((state) => Boolean(state.watchAddress));
+  const priority = useVela((state) => state.priority);
+  const setSheet = useVela((state) => state.setSheet);
+  const [sending, setSending] = useState(false);
+  const [to, setTo] = useState("");
+  if (!nft) {
+    return (
+      <Overlay label="Collectible" onClose={() => setSheet(null)}>
+        <p className="text-sm text-muted">This NFT is no longer in the wallet.</p>
+      </Overlay>
+    );
+  }
+  const address = to.trim();
+  function review() {
+    if (!nft) return;
+    const intent: TxIntent = {
+      kind: "send-nft",
+      origin: "https://solportal.wallet",
+      site: "SolPortal Send",
+      verified: true,
+      title: `Send ${nft.name}`,
+      nft,
+      to: address || "Unknown address",
+      networkFeeSol: priorityFeeSol(priority),
+      effects: [],
+      authorities: [],
+      warnings:
+        address.length < 32
+          ? [{ level: "warn", title: "Address looks short", detail: "A real Solana address is 32 bytes, base58." }]
+          : [{ level: "info", title: "NFT transfers are final", detail: "Double-check the address. Nobody can reverse it." }],
+    };
+    setSheet({ kind: "sign", intent });
+  }
+  return (
+    <Overlay label={nft.name} onClose={() => setSheet(null)}>
+      <NftArt nft={nft} className="aspect-square w-full rounded-card" />
+      <h2 className="mt-4 text-xl font-semibold">{nft.name}</h2>
+      <p className="text-sm text-muted">{nft.collection}</p>
+      {watching ? null : sending ? (
+        <div className="mt-4">
+          <input
+            value={to}
+            autoFocus
+            onChange={(event) => setTo(event.target.value)}
+            placeholder="Destination address"
+            className="h-12 w-full rounded-control border border-line bg-bg px-3 font-mono text-xs outline-none"
+          />
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <GhostButton onClick={() => setSending(false)}>Cancel</GhostButton>
+            <PrimaryButton disabled={!address} onClick={review}>
+              Review
+            </PrimaryButton>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <PrimaryButton onClick={() => setSending(true)}>Send</PrimaryButton>
+          <GhostButton onClick={() => setSheet({ kind: "receive" })}>Receive</GhostButton>
+        </div>
+      )}
     </Overlay>
   );
 }

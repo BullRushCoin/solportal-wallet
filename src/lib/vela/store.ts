@@ -14,6 +14,7 @@ import {
   setCustomTokens,
   STARTER_HOLDINGS,
   STARTER_NFTS,
+  INCOMING_NFTS,
   tokenBySymbol,
   tokenLookup,
   type CustomToken,
@@ -110,6 +111,7 @@ export type Sheet =
   | { kind: "add-wallet" }
   | { kind: "card-skin" }
   | { kind: "backup" }
+  | { kind: "nft"; id: string }
   | { kind: "asset"; token: AssetSheetToken; amount: number; viewOnly?: boolean };
 
 export type AccountKind = WalletMode | "watch";
@@ -215,6 +217,8 @@ type Actions = {
   connectSite: (dappId: string) => void;
   revokeSite: (origin: string) => void;
   approve: (intent: TxIntent) => void;
+  /** Sandbox: a friend sends this wallet one of the demo NFTs. */
+  receiveNft: () => void;
   reject: () => void;
   setPro: (pro: boolean) => void;
   setPriority: (priority: Priority) => void;
@@ -612,6 +616,26 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
 
       revokeSite: (origin) => set({ connected: get().connected.filter((site) => site.origin !== origin) }),
 
+      receiveNft: () => {
+        const state = get();
+        const next = INCOMING_NFTS.find((nft) => !state.nfts.some((own) => own.id === nft.id));
+        if (!next) {
+          set({ toast: "You've received every demo NFT. Send one away to try again." });
+          return;
+        }
+        set({
+          nfts: [next, ...state.nfts],
+          activity: pushActivity(state.activity, {
+            kind: "nft",
+            title: `Received ${next.name}`,
+            detail: "From a friend · sandbox",
+            usd: 0,
+          }),
+          sheet: { kind: "nft", id: next.id },
+          toast: `Received ${next.name}`,
+        });
+      },
+
       approve: (intent) => {
         const signature = fakeSignature();
         let holdings = { ...get().holdings };
@@ -653,6 +677,15 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
             title: `Sent ${intent.symbol}`,
             detail: intent.to,
             usd: -intent.amount * tokenBySymbol(intent.symbol).priceUsd,
+          });
+        } else if (intent.kind === "send-nft") {
+          nfts = nfts.filter((nft) => nft.id !== intent.nft.id);
+          holdings = applyDeltas(holdings, { SOL: -intent.networkFeeSol });
+          activity = pushActivity(activity, {
+            kind: "nft",
+            title: `Sent ${intent.nft.name}`,
+            detail: intent.to,
+            usd: 0,
           });
         } else if (intent.kind === "stake") {
           const action = intent.action ?? "stake";
