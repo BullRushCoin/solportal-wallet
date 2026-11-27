@@ -145,7 +145,7 @@ export function BalanceCard({
         </>
       ) : null}
 
-      <div className={`flex flex-col px-5 pt-4 pb-4 ${chart ? "h-[360px]" : "h-[244px]"}`}>
+      <div className={`flex flex-col px-5 pt-4 pb-4 ${chart ? "h-[316px]" : "h-[244px]"}`}>
         <div className="flex items-start justify-between gap-2">
           <button
             type="button"
