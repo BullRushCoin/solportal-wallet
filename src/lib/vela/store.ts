@@ -65,6 +65,7 @@ export type Revenue = {
 export type Tab = "home" | "explore" | "swap" | "market" | "more";
 export type MoreRoute =
   | "root"
+  | "devnet"
   | "activity"
   | "stake"
   | "buy"

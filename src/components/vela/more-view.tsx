@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
+
+const DevnetPage = lazy(() => import("@/components/vela/devnet-page"));
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   ArrowDownLeft,
@@ -10,6 +12,7 @@ import {
   Copy,
   CreditCard,
   Eye,
+  FlaskConical,
   Gauge,
   GraduationCap,
   History,
@@ -57,6 +60,12 @@ const LST_SYMBOLS = ["JitoSOL", "mSOL", "bSOL", "INF"] as const;
 export function MoreView() {
   const more = useVela((state) => state.more);
 
+  if (more === "devnet")
+    return (
+      <Suspense fallback={<PageBar title="Devnet" />}>
+        <DevnetPage />
+      </Suspense>
+    );
   if (more === "activity") return <ActivityPage />;
   if (more === "stake") return <StakePage />;
   if (more === "watch") return <WatchWalletPage />;
@@ -112,6 +121,7 @@ function MoreRoot() {
     { label: "Sites", icon: Link2, tone: "blue", run: () => setMore("sites") },
     { label: "Support", icon: LifeBuoy, tone: "orange", run: () => setMore("support") },
     { label: "Learn", icon: GraduationCap, tone: "lime", run: () => setLearn(true) },
+    { label: "Devnet", icon: FlaskConical, tone: "emerald", run: () => setMore("devnet") },
   ];
 
   return (
