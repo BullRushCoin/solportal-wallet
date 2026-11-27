@@ -201,7 +201,6 @@ function BannerCarousel({
             {compact ? (
               <span className="relative z-10 flex h-full max-w-[70%] flex-col justify-center px-4">
                 <span className="inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold tracking-[0.2em] text-[#e0b86a] uppercase">
-                  <span aria-hidden className="block h-px w-3 bg-[#e0b86a]/70" />
                   {banner.kicker}
                 </span>
                 <span className="mt-1 block truncate text-[17px] leading-tight font-bold tracking-tight text-white [text-shadow:0_1px_8px_rgb(0_0_0/0.6)]">
@@ -213,7 +212,6 @@ function BannerCarousel({
             <span className="relative z-10 flex h-full max-w-[64%] flex-col justify-between p-4 pr-0">
                 <span>
                   <span className="inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold tracking-[0.2em] text-[#e0b86a] uppercase">
-                    <span aria-hidden className="block h-px w-3 bg-[#e0b86a]/70" />
                     {banner.kicker}
                   </span>
                   <span className="mt-1.5 block text-[19px] leading-[1.15] font-bold tracking-tight text-balance text-white [text-shadow:0_1px_8px_rgb(0_0_0/0.6)]">
