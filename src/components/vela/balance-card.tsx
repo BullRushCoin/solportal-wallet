@@ -145,7 +145,7 @@ export function BalanceCard({
         </>
       ) : null}
 
-      <div className={`flex flex-col px-5 pt-4 pb-4 ${chart ? "" : "h-[244px]"}`}>
+      <div className={`flex flex-col px-5 pt-3.5 pb-3 ${chart ? "" : "h-[244px]"}`}>
         <div className="flex items-start justify-between gap-2">
           <button
             type="button"
@@ -193,7 +193,7 @@ export function BalanceCard({
           <Copy className="size-3" style={{ color: colors.muted }} />
         </button>
 
-        <div className={chart ? "mt-4" : "mt-auto"}>
+        <div className={chart ? "mt-2.5" : "mt-auto"}>
           <p className="font-mono text-[11px] tracking-[0.2em] uppercase" style={{ color: colors.muted }}>
             Balance
           </p>
@@ -217,7 +217,7 @@ export function BalanceCard({
         </div>
         {chart ? (
           <>
-            <div className="mt-4">{chart(colors.chart)}</div>
+            <div className="mt-2">{chart(colors.chart)}</div>
             <p className="mt-2 truncate font-mono text-[10px] tracking-wide" style={{ color: colors.muted }}>
               {label}
             </p>

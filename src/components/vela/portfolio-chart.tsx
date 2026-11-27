@@ -34,7 +34,7 @@ export function PortfolioChart({
 
   return (
     <div className={theme ? "" : "mt-4"}>
-      <div className={theme ? "-mx-1 h-[92px]" : "h-32"}>
+      <div className={theme ? "-mx-1 h-[60px]" : "h-32"}>
         {series.length > 1 ? (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={series} margin={{ top: 6, right: 0, bottom: 0, left: 0 }}>
