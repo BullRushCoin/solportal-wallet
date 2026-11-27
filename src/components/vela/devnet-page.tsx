@@ -55,6 +55,7 @@ export default function DevnetPage() {
   const [junk, setJunk] = useState<JunkAccount[]>([]);
   const [burnAsk, setBurnAsk] = useState(false);
   const [burnResult, setBurnResult] = useState<string | null>(null);
+  const [pickedNfts, setPickedNfts] = useState<string[]>([]);
   const [busy, setBusy] = useState<Busy>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastSig, setLastSig] = useState<string | null>(null);
@@ -282,17 +283,23 @@ export default function DevnetPage() {
 
         <IncineratorSection
           junk={junk}
+          picked={pickedNfts}
+          onPick={(account) =>
+            setPickedNfts((current) => (current.includes(account) ? current.filter((a) => a !== account) : [...current, account]))
+          }
           busy={busy}
           ask={burnAsk}
           result={burnResult}
           onAsk={setBurnAsk}
-          onMakeJunk={() => void run("junk", () => makeJunk(keypair), "3 junk tokens created")}
+          onMakeJunk={() => void run("junk", () => makeJunk(keypair), "3 junk tokens and 1 spam NFT created")}
           onBurn={() =>
             void run(
               "burn",
               async () => {
-                const res = await incinerate(keypair, junk, feeBps, feeWalletAddress());
+                const targets = junk.filter((item) => !item.isNft || pickedNfts.includes(item.account));
+                const res = await incinerate(keypair, targets, feeBps, feeWalletAddress());
                 setBurnAsk(false);
+                setPickedNfts([]);
                 setBurnResult(
                   `Reclaimed ${formatAmt(res.reclaimedSol, 6)} SOL` +
                     (res.feeSkipped ? " · fee skipped on devnet" : res.feeSol > 0 ? ` · ${formatAmt(res.feeSol, 6)} SOL fee to SolPortal` : ""),
@@ -393,6 +400,8 @@ export default function DevnetPage() {
 
 function IncineratorSection({
   junk,
+  picked,
+  onPick,
   busy,
   ask,
   result,
@@ -401,6 +410,8 @@ function IncineratorSection({
   onBurn,
 }: {
   junk: JunkAccount[];
+  picked: string[];
+  onPick: (account: string) => void;
   busy: Busy;
   ask: boolean;
   result: string | null;
@@ -409,54 +420,105 @@ function IncineratorSection({
   onBurn: () => void;
 }) {
   const feeBps = incineratorFeeBps();
-  const rentSol = junk.reduce((sum, item) => sum + item.rentLamports, 0) / 1e9;
+  const tokens = junk.filter((item) => !item.isNft);
+  const nfts = [...junk.filter((item) => item.isNft)].sort((a, b) => Number(b.spam) - Number(a.spam));
+  const chosenNfts = nfts.filter((item) => picked.includes(item.account));
+  const targets = [...tokens, ...chosenNfts];
+  const rentSol = targets.reduce((sum, item) => sum + item.rentLamports, 0) / 1e9;
   const feeSol = (rentSol * feeBps) / 10_000;
   return (
     <div className="mt-8">
       <div className="flex items-center justify-between">
         <SectionLabel>Devnet Incinerator</SectionLabel>
         <button type="button" disabled={busy !== null} onClick={onMakeJunk} className="text-sm text-accent disabled:opacity-50">
-          {busy === "junk" ? "Creating…" : "Make junk tokens"}
+          {busy === "junk" ? "Creating…" : "Make junk"}
         </button>
       </div>
       <div className="mt-3 rounded-card border border-line bg-surface p-4">
         {junk.length === 0 ? (
           <p className="text-sm text-muted">
-            No junk in this wallet. Tap Make junk tokens to create dust and an empty account, then burn them for real.
+            Nothing to burn. Tap Make junk to create dust, an empty account and a spam NFT, then burn them for real.
           </p>
         ) : (
           <>
-            <ul className="divide-y divide-line">
-              {junk.map((item) => (
-                <li key={item.account} className="flex items-center justify-between py-2 text-sm">
-                  <span className="font-medium">{item.symbol}</span>
-                  <span className="text-xs text-muted tabular-nums">
-                    {item.amountRaw === "0" ? "Empty account" : `${formatAmt(item.uiAmount, 2)} dust`} · {formatAmt(item.rentLamports / 1e9, 5)} SOL rent
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-3 space-y-0.5 text-sm">
-              <p>Rent locked {formatAmt(rentSol, 6)} SOL</p>
-              <p className="text-muted">Fee {formatAmt(feeSol, 6)} SOL ({feeBps / 100}%) to SolPortal</p>
-              <p className="font-medium text-accent">You get back about {formatAmt(rentSol - feeSol, 6)} SOL</p>
-            </div>
-            {ask ? (
-              <div className="mt-3">
-                <p className="text-xs text-muted">Burns the dust and closes {junk.length} accounts on devnet. This is final.</p>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  <GhostButton disabled={busy !== null} onClick={() => onAsk(false)}>Cancel</GhostButton>
-                  <DangerButton disabled={busy !== null} onClick={onBurn}>
-                    {busy === "burn" ? "Burning…" : "Sign & burn"}
-                  </DangerButton>
+            {tokens.length > 0 ? (
+              <>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted">Tokens · always included</p>
+                <ul className="mt-1 divide-y divide-line">
+                  {tokens.map((item) => (
+                    <li key={item.account} className="flex items-center justify-between py-2 text-sm">
+                      <span className="font-medium">{item.symbol}</span>
+                      <span className="text-xs text-muted tabular-nums">
+                        {item.amountRaw === "0" ? "Empty account" : `${formatAmt(item.uiAmount, 2)} dust`} · {formatAmt(item.rentLamports / 1e9, 5)} SOL
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
+            {nfts.length > 0 ? (
+              <>
+                <p className={`text-xs font-medium uppercase tracking-wide text-muted ${tokens.length ? "mt-4" : ""}`}>NFTs · tap to include</p>
+                <ul className="mt-1 divide-y divide-line">
+                  {nfts.map((item) => {
+                    const on = picked.includes(item.account);
+                    return (
+                      <li key={item.account}>
+                        <button
+                          type="button"
+                          disabled={busy !== null}
+                          onClick={() => onPick(item.account)}
+                          className="flex w-full items-center gap-3 py-2 text-left text-sm"
+                        >
+                          <span
+                            className={`flex size-5 shrink-0 items-center justify-center rounded border ${on ? "border-red-500 bg-red-500 text-white" : "border-line"}`}
+                          >
+                            {on ? "✓" : ""}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate font-medium">{item.symbol}</span>
+                            <span className={`text-xs ${item.spam ? "text-amber-500" : "text-muted"}`}>
+                              {item.spam ? "Likely spam" : "Yours"} · No floor
+                            </span>
+                          </span>
+                          <span className="text-xs text-muted tabular-nums">{formatAmt(item.rentLamports / 1e9, 5)} SOL</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
+            ) : null}
+            {targets.length > 0 ? (
+              <>
+                <div className="mt-3 space-y-0.5 text-sm">
+                  <p>Rent locked {formatAmt(rentSol, 6)} SOL</p>
+                  <p className="text-muted">Fee {formatAmt(feeSol, 6)} SOL ({feeBps / 100}%) to SolPortal</p>
+                  <p className="font-medium text-accent">You get back about {formatAmt(rentSol - feeSol, 6)} SOL</p>
                 </div>
-              </div>
+                {ask ? (
+                  <div className="mt-3">
+                    <p className="text-xs text-muted">
+                      Closes {targets.length} account{targets.length === 1 ? "" : "s"} on devnet
+                      {chosenNfts.length ? `, including ${chosenNfts.length} NFT${chosenNfts.length === 1 ? "" : "s"} gone for good` : ""}. This is final.
+                    </p>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <GhostButton disabled={busy !== null} onClick={() => onAsk(false)}>Cancel</GhostButton>
+                      <DangerButton disabled={busy !== null} onClick={onBurn}>
+                        {busy === "burn" ? "Burning…" : "Sign & burn"}
+                      </DangerButton>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-3">
+                    <PrimaryButton disabled={busy !== null} onClick={() => onAsk(true)}>
+                      <Flame className="mr-1.5 size-4" /> Incinerate {targets.length} account{targets.length === 1 ? "" : "s"}
+                    </PrimaryButton>
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="mt-3">
-                <PrimaryButton disabled={busy !== null} onClick={() => onAsk(true)}>
-                  <Flame className="mr-1.5 size-4" /> Incinerate {junk.length} account{junk.length === 1 ? "" : "s"}
-                </PrimaryButton>
-              </div>
+              <p className="mt-3 text-xs text-muted">Tap an NFT to include it.</p>
             )}
           </>
         )}

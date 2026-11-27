@@ -256,7 +256,14 @@ export type JunkAccount = {
   uiAmount: number;
   decimals: number;
   rentLamports: number;
+  /** One-of-one (0 decimals, balance 1). Never preselected for burning. */
+  isNft: boolean;
+  /** Unrecognised or known-spam NFT. Devnet has no floor prices, so every NFT shows "No floor". */
+  spam: boolean;
+  image: string | null;
 };
+
+const SPAM_NFT_NAMES = ["FREE 500 SOL CLAIM", "Airdrop Voucher (claim now)", "$JUP Bonus Pass", "Mystery Box: visit site"];
 
 function junkNames(): Record<string, string> {
   try {
@@ -290,7 +297,30 @@ export async function makeJunk(payer: Keypair): Promise<string> {
     if (i < 2) ixs.push(createMintToInstruction(mint.publicKey, ata, payer.publicKey, Math.floor(1_000 + Math.random() * 90_000_000)));
     names[mint.publicKey.toBase58()] = JUNK_NAMES[(used + i) % JUNK_NAMES.length]!;
   });
-  const signature = await sendIx(payer, ixs, mints);
+  await sendIx(payer, ixs, mints);
+  localStorage.setItem(JUNK_STORE, JSON.stringify(names));
+
+  // Plus one scam-style NFT, the kind people get airdropped, so the NFT side can be tested.
+  const spam = Keypair.generate();
+  const spamAta = getAssociatedTokenAddressSync(spam.publicKey, payer.publicKey);
+  const signature = await sendIx(
+    payer,
+    [
+      SystemProgram.createAccount({
+        fromPubkey: payer.publicKey,
+        newAccountPubkey: spam.publicKey,
+        space: MINT_SIZE,
+        lamports: mintRent,
+        programId: TOKEN_PROGRAM_ID,
+      }),
+      createInitializeMint2Instruction(spam.publicKey, 0, payer.publicKey, null),
+      createAssociatedTokenAccountIdempotentInstruction(payer.publicKey, spamAta, payer.publicKey, spam.publicKey),
+      createMintToInstruction(spam.publicKey, spamAta, payer.publicKey, 1),
+      createSetAuthorityInstruction(spam.publicKey, payer.publicKey, AuthorityType.MintTokens, null),
+    ],
+    [spam],
+  );
+  names[spam.publicKey.toBase58()] = SPAM_NFT_NAMES[Math.floor(Math.random() * SPAM_NFT_NAMES.length)]!;
   localStorage.setItem(JUNK_STORE, JSON.stringify(names));
   return signature;
 }
@@ -299,6 +329,7 @@ export async function makeJunk(payer: Keypair): Promise<string> {
 export async function scanJunk(owner: PublicKey): Promise<JunkAccount[]> {
   const { value } = await conn().getParsedTokenAccountsByOwner(owner, { programId: TOKEN_PROGRAM_ID });
   const names = junkNames();
+  const mine = savedNames();
   const out: JunkAccount[] = [];
   for (const item of value) {
     const info = (item.account.data as {
@@ -307,11 +338,15 @@ export async function scanJunk(owner: PublicKey): Promise<JunkAccount[]> {
     const amount = info?.tokenAmount;
     if (!info?.mint || !amount) continue;
     const decimals = amount.decimals ?? 0;
-    if (decimals === 0 && amount.amount === "1") continue; // NFT: keep
+    const isNft = decimals === 0 && amount.amount === "1";
+    const known = mine[info.mint];
     out.push({
+      isNft,
+      spam: isNft && !known,
+      image: known?.image ?? null,
       account: item.pubkey.toBase58(),
       mint: info.mint,
-      symbol: names[info.mint] ?? `${info.mint.slice(0, 4)}…`,
+      symbol: known?.name ?? names[info.mint] ?? (isNft ? `Unknown NFT ${info.mint.slice(0, 4)}…` : `${info.mint.slice(0, 4)}…`),
       amountRaw: amount.amount ?? "0",
       uiAmount: amount.uiAmount ?? 0,
       decimals,
