@@ -3,9 +3,10 @@ import { Fingerprint, KeyRound, ShieldAlert } from "lucide-react";
 import { WORDLIST, generatePhrase, parseSandboxPhrase } from "@/lib/vela/crypto";
 import { useVela, type WalletMode } from "@/lib/vela/store";
 import { GhostButton, Mark, PrimaryButton, SectionLabel } from "@/components/vela/ui";
+import { BackupPrompt } from "@/components/vela/backup";
 import { WatchAddressForm } from "@/components/vela/watch-address";
 
-type Step = "intro" | "phrase" | "verify" | "import" | "passkey" | "watch";
+type Step = "intro" | "safe" | "phrase" | "verify" | "import" | "passkey" | "watch";
 
 export function Onboarding() {
   const createWallet = useVela((state) => state.createWallet);
@@ -33,11 +34,11 @@ export function Onboarding() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checks, phrase, attempt]);
 
-  async function finish(mode: WalletMode, words: string[] | null) {
+  async function finish(mode: WalletMode, words: string[] | null, backedUp?: boolean) {
     setBusy(true);
     setError("");
     try {
-      await createWallet(mode, words);
+      await createWallet(mode, words, undefined, backedUp);
     } catch {
       setError("Could not create the sandbox wallet.");
       setBusy(false);
@@ -51,7 +52,7 @@ export function Onboarding() {
     setChecks(positions);
     setRound(0);
     setAck(false);
-    setStep("phrase");
+    setStep("safe");
   }
 
   function pick(option: string) {
@@ -127,6 +128,10 @@ export function Onboarding() {
             </button>
           </div>
         </>
+      ) : null}
+
+      {step === "safe" ? (
+        <BackupPrompt busy={busy} onBackup={() => setStep("phrase")} onSkip={() => void finish("seed", phrase, false)} />
       ) : null}
 
       {step === "phrase" ? (

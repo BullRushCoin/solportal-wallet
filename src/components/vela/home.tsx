@@ -15,6 +15,7 @@ import type { PortfolioRange } from "@/lib/vela/portfolio-history";
 import { describeChange, usePortfolioHistory } from "@/lib/vela/use-portfolio-history";
 import { IncineratorCard } from "@/components/vela/incinerator-card";
 import { HomeBanners } from "@/components/vela/explore-banners";
+import { BackupNudge } from "@/components/vela/backup";
 
 export function HomeView() {
   const watchAddress = useVela((state) => state.watchAddress);
@@ -77,6 +78,8 @@ function SandboxHome() {
         change={total > 0 ? describeChange(history, range) : null}
         chart={total > 0 ? (theme) => <PortfolioChart history={history} range={range} onRange={setRange} theme={theme} /> : undefined}
       />
+
+      <BackupNudge />
 
       {total > 0 ? null : (
         <button className="mt-3 text-sm text-accent" onClick={restoreSandbox}>

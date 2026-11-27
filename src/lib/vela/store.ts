@@ -27,6 +27,8 @@ export type Wallet = {
   address: string;
   phrase: string[] | null;
   createdAt: number;
+  /** false when the user skipped the phrase backup at creation; missing means backed up (older wallets). */
+  backedUp?: boolean;
 };
 
 export type ActivityKind = "swap" | "send" | "receive" | "stake" | "buy" | "dapp" | "nft" | "message" | "incinerate";
@@ -107,6 +109,7 @@ export type Sheet =
   | { kind: "wallets" }
   | { kind: "add-wallet" }
   | { kind: "card-skin" }
+  | { kind: "backup" }
   | { kind: "asset"; token: AssetSheetToken; amount: number; viewOnly?: boolean };
 
 export type AccountKind = WalletMode | "watch";
@@ -194,7 +197,9 @@ type Actions = {
   setMore: (more: MoreRoute) => void;
   setSheet: (sheet: Sheet) => void;
   setToast: (toast: string | null) => void;
-  createWallet: (mode: WalletMode, phrase: string[] | null, name?: string) => Promise<void>;
+  createWallet: (mode: WalletMode, phrase: string[] | null, name?: string, backedUp?: boolean) => Promise<void>;
+  /** Mark the live wallet's recovery phrase as backed up (after the 3-word check). */
+  markBackedUp: () => void;
   addWatchAccount: (address: string, name?: string) => void;
   switchAccount: (id: string) => void;
   renameAccount: (id: string, name: string) => void;
@@ -381,7 +386,16 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
       setSheet: (sheet) => set({ sheet }),
       setToast: (toast) => set({ toast }),
 
-      createWallet: async (mode, phrase, name) => {
+      markBackedUp: () => {
+        const state = get();
+        if (!state.wallet) return;
+        const wallet: Wallet = { ...state.wallet, backedUp: true };
+        const accounts = state.accounts.map((account) =>
+          account.wallet && account.address === wallet.address ? { ...account, wallet } : account,
+        );
+        set({ wallet, accounts, sheet: null, toast: "Recovery phrase backed up" });
+      },
+      createWallet: async (mode, phrase, name, backedUp) => {
         const address = phrase ? await addressFromPhrase(phrase.join(" ")) : randomAddress();
         const now = Date.now();
         const state = get();
@@ -393,7 +407,7 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
           set({ toast: "That wallet is already added" });
           return;
         }
-        const wallet: Wallet = { mode, address, phrase, createdAt: now };
+        const wallet: Wallet = { mode, address, phrase, createdAt: now, ...(backedUp === false ? { backedUp: false } : {}) };
         const account: Account = {
           id: uid(),
           name: name?.trim() || defaultName(accounts, mode),

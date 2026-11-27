@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { BackupSheet } from "@/components/vela/backup";
 import { ShieldAlert } from "lucide-react";
 import { dappByHost, dappById, normalizeHost } from "@/lib/vela/dapps";
 import { formatAmt, formatUsd, shortAddr } from "@/lib/vela/format";
@@ -21,6 +22,7 @@ export function Sheets() {
   if (sheet.kind === "wallets") return <WalletsSheet />;
   if (sheet.kind === "add-wallet") return <AddWalletSheet />;
   if (sheet.kind === "card-skin") return <CardSkinSheet />;
+  if (sheet.kind === "backup") return <BackupSheet />;
   if (sheet.kind === "asset") return <AssetSheet key={sheet.token.mint} token={sheet.token} amount={sheet.amount} viewOnly={sheet.viewOnly} />;
   return null;
 }
