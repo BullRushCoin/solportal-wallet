@@ -18,14 +18,20 @@ export function Onboarding() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
+  // Bumped after a wrong pick so that round gets fresh decoys in a new order.
+  const [attempt, setAttempt] = useState(0);
+  const [wrong, setWrong] = useState<string | null>(null);
+
   const quiz = useMemo(() => {
     return checks.map((index) => {
       const answer = phrase[index] ?? "keel";
-      const decoys = WORDLIST.filter((word) => word !== answer).slice(index, index + 3);
-      const options = [answer, ...decoys].slice(0, 4);
-      return { index, answer, options: hashOrder(options, index) };
+      const pool = WORDLIST.filter((word) => word !== answer && !phrase.includes(word));
+      const decoys = shuffle(pool).slice(0, 3);
+      return { index, answer, options: shuffle([answer, ...decoys]) };
     });
-  }, [checks, phrase]);
+    // attempt is a deliberate dependency: a wrong pick reshuffles the options.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checks, phrase, attempt]);
 
   async function finish(mode: WalletMode, words: string[] | null) {
     setBusy(true);
@@ -51,8 +57,14 @@ export function Onboarding() {
   function pick(option: string) {
     const current = quiz[round];
     if (!current) return;
+    if (wrong) return;
     if (option !== current.answer) {
-      setError(`Word ${current.index + 1} does not match. Check the phrase.`);
+      setError(`Word ${current.index + 1} does not match. Try again, or go back to check your phrase.`);
+      setWrong(option);
+      window.setTimeout(() => {
+        setWrong(null);
+        setAttempt((value) => value + 1);
+      }, 700);
       return;
     }
     setError("");
@@ -159,16 +171,30 @@ export function Onboarding() {
           <div className="mt-5 grid grid-cols-2 gap-2">
             {quiz[round].options.map((option) => (
               <button
-                key={option}
-                className="h-12 rounded-control border border-line bg-surface font-medium"
+                key={`${attempt}-${option}`}
+                className={`h-12 rounded-control border font-medium transition-colors ${
+                  wrong === option ? "animate-pulse border-danger bg-danger/15 text-danger" : "border-line bg-surface"
+                }`}
                 onClick={() => pick(option)}
-                disabled={busy}
+                disabled={busy || Boolean(wrong)}
               >
                 {option}
               </button>
             ))}
           </div>
           {error ? <p className="mt-4 text-sm text-danger">{error}</p> : null}
+          <button
+            type="button"
+            className="mt-4 text-sm text-accent"
+            onClick={() => {
+              setError("");
+              setRound(0);
+              setAttempt((value) => value + 1);
+              setStep("phrase");
+            }}
+          >
+            Show my phrase again
+          </button>
         </>
       ) : null}
 
@@ -242,6 +268,11 @@ export function Onboarding() {
   );
 }
 
-function hashOrder(words: string[], salt: number): string[] {
-  return [...words].sort((a, b) => ((a.charCodeAt(0) + salt) % 7) - ((b.charCodeAt(0) + salt) % 7));
+function shuffle<T>(items: T[]): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j]!, out[i]!];
+  }
+  return out;
 }
