@@ -7,6 +7,8 @@ import {
   createKeypair,
   explorerAccount,
   explorerTx,
+  faucetEnabled,
+  PUBLIC_FAUCET,
   isValidAddress,
   listNfts,
   loadKeypair,
@@ -29,8 +31,9 @@ type Busy = null | "airdrop" | "send" | "mint" | "nft";
 
 function errText(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
-  if (/airdrop|faucet|429|limit/i.test(message)) return "The devnet faucet is busy. Try again in a minute, or use faucet.solana.com.";
-  if (/insufficient|0x1\b|lamports/i.test(message)) return "Not enough devnet SOL. Tap Get free SOL first.";
+  if (/cooldown/i.test(message)) return "You already got free SOL this hour. Try faucet.solana.com for more.";
+  if (/faucet|airdrop|429/i.test(message)) return "The in-app faucet is unavailable right now. Use faucet.solana.com with your copied address.";
+  if (/insufficient|prior credit|0x1\b|lamports/i.test(message)) return "Not enough devnet SOL. Tap Free SOL first.";
   return message.length > 160 ? `${message.slice(0, 160)}…` : message;
 }
 
@@ -49,10 +52,13 @@ export default function DevnetPage() {
   const [amount, setAmount] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [resetAsk, setResetAsk] = useState(false);
+  const [inAppFaucet, setInAppFaucet] = useState(false);
+  const [faucetHint, setFaucetHint] = useState(false);
 
   useEffect(() => {
     setKeypair(loadKeypair());
     setReady(true);
+    void faucetEnabled().then(setInAppFaucet);
   }, []);
 
   const refresh = useCallback(async (kp: Keypair) => {
@@ -156,7 +162,19 @@ export default function DevnetPage() {
             {shortAddr(address)} <Copy className="size-3" />
           </button>
           <div className="mt-4 grid grid-cols-3 gap-2">
-            <GhostButton disabled={busy !== null} onClick={() => void run("airdrop", () => airdrop(keypair.publicKey, 1), "1 devnet SOL received")}>
+            <GhostButton
+              disabled={busy !== null}
+              onClick={() => {
+                if (inAppFaucet) {
+                  void run("airdrop", () => airdrop(keypair.publicKey), "Free devnet SOL received");
+                  return;
+                }
+                void navigator.clipboard?.writeText(address);
+                window.open(PUBLIC_FAUCET, "_blank", "noopener");
+                setFaucetHint(true);
+                setToast("Address copied. Paste it on the Solana faucet.");
+              }}
+            >
               <Droplets className="mr-1 size-4" /> {busy === "airdrop" ? "…" : "Free SOL"}
             </GhostButton>
             <GhostButton disabled={busy !== null} onClick={() => { setMode("send"); setConfirming(false); }}>
@@ -173,6 +191,15 @@ export default function DevnetPage() {
           </div>
         </div>
 
+        {faucetHint ? (
+          <div className="mt-3 rounded-control border border-line px-3 py-3 text-sm">
+            <p>Paste your copied address on faucet.solana.com, pick Devnet, and request SOL. Then tap refresh here.</p>
+            <div className="mt-2 flex gap-3 text-xs">
+              <a href={PUBLIC_FAUCET} target="_blank" rel="noreferrer" className="text-accent">Open faucet</a>
+              <button type="button" className="text-muted" onClick={() => { void refresh(keypair); setFaucetHint(false); }}>I've got it, refresh</button>
+            </div>
+          </div>
+        ) : null}
         {error ? <p className="mt-3 rounded-control border border-danger px-3 py-2 text-sm text-danger">{error}</p> : null}
         {lastSig ? (
           <a href={explorerTx(lastSig)} target="_blank" rel="noreferrer" className="mt-3 flex items-center justify-between rounded-control border border-accent/50 px-3 py-2 text-sm">

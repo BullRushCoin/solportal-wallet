@@ -111,10 +111,30 @@ async function sendIx(payer: Keypair, ixs: TransactionInstruction[], extraSigner
   return signature;
 }
 
-export async function airdrop(owner: PublicKey, sol = 1): Promise<string> {
-  const signature = await conn().requestAirdrop(owner, Math.round(sol * LAMPORTS_PER_SOL));
-  await waitFor(signature, 60_000);
-  return signature;
+export const PUBLIC_FAUCET = "https://faucet.solana.com";
+
+export async function faucetEnabled(): Promise<boolean> {
+  try {
+    const res = await fetch("/api/devnet-faucet", { cache: "no-store" });
+    return Boolean(((await res.json()) as { enabled?: boolean }).enabled);
+  } catch {
+    return false;
+  }
+}
+
+/** In-app faucet (when SolPortal's devnet faucet wallet is configured). */
+export async function airdrop(owner: PublicKey): Promise<string> {
+  const res = await fetch("/api/devnet-faucet", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ address: owner.toBase58() }),
+  });
+  const body = (await res.json()) as { signature?: string; error?: string };
+  if (!res.ok || !body.signature) {
+    throw new Error(body.error === "cooldown" ? "faucet cooldown: one drip per hour" : body.error === "faucet-empty" ? "faucet empty" : "faucet unavailable");
+  }
+  await waitFor(body.signature, 60_000);
+  return body.signature;
 }
 
 export async function sendSol(payer: Keypair, to: string, sol: number): Promise<string> {
