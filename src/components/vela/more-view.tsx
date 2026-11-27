@@ -45,6 +45,7 @@ import {
   WalletCards,
 } from "lucide-react";
 import { formatAmt, formatUsd, shortAddr } from "@/lib/vela/format";
+import { loadKeypair } from "@/lib/vela/devnet";
 import { type TxIntent } from "@/lib/vela/provider";
 import { priorityFeeSol, useVela, type Priority } from "@/lib/vela/store";
 import { resolveCardSkin } from "@/lib/vela/card-skins";
@@ -611,6 +612,26 @@ function useLiveSolPrice(): SolPriceState {
   return { ...state, live: fresh };
 }
 
+const MOONPAY_KEY = (import.meta.env.VITE_MOONPAY_PUBLISHABLE_KEY as string | undefined)?.trim() ?? "";
+
+/** MoonPay hosted widget. A pk_test_ key opens MoonPay's sandbox automatically (test cards, no real money). */
+function openMoonPay(usd: number) {
+  const params = new URLSearchParams({
+    apiKey: MOONPAY_KEY,
+    currencyCode: "sol",
+    baseCurrencyCode: "usd",
+    baseCurrencyAmount: String(Math.round(usd)),
+  });
+  let address: string | undefined;
+  try {
+    address = loadKeypair()?.publicKey.toBase58();
+  } catch {
+    address = undefined;
+  }
+  if (address) params.set("walletAddress", address);
+  window.open(`https://buy.moonpay.com/?${params.toString()}`, "_blank", "noopener,noreferrer");
+}
+
 function BuyPage() {
   const priority = useVela((state) => state.priority);
   const setSheet = useVela((state) => state.setSheet);
@@ -729,6 +750,11 @@ function BuyPage() {
         <PrimaryButton disabled={Boolean(problem)} onClick={review}>
           Review purchase
         </PrimaryButton>
+        {partner === "MoonPay" && MOONPAY_KEY ? (
+          <GhostButton disabled={Boolean(problem)} onClick={() => openMoonPay(usd)}>
+            {MOONPAY_KEY.startsWith("pk_test_") ? "Open MoonPay (test mode)" : "Buy with MoonPay"}
+          </GhostButton>
+        ) : null}
       </div>
     </SubPage>
   );
