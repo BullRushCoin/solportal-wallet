@@ -1,14 +1,17 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, Globe, Star, Info, MessageCircle, Pause, Play, Send as SendIcon } from "lucide-react";
 import { formatCompactUsd, formatUsd, shortAddr } from "@/lib/vela/format";
-import { TICKER_COINS } from "@/lib/vela/market-tickers";
+import { TICKER_COINS, TOP_COINS, type TopCoin } from "@/lib/vela/market-tickers";
 import { buyRatio, formatAge, MEME_SORTS, sortMemeCoins, type MemeCoin, type MemeSort } from "@/lib/vela/memecoins";
 import { useVela, type WatchItem } from "@/lib/vela/store";
 import { useLivePrices, useMemeFeed, useNow, type LiveQuote } from "@/lib/vela/use-live";
 import { TokenMark } from "@/components/vela/ui";
 import { WatchStar } from "@/components/vela/watch-star";
 
-const TICKER_MINTS = TICKER_COINS.map((coin) => coin.mint);
+// Movers ticker draws from the majors, the top-coins list and xStocks, deduped.
+const MOVER_COINS = [...TICKER_COINS, ...TOP_COINS.filter((top) => !TICKER_COINS.some((coin) => coin.mint === top.mint))];
+const TICKER_MINTS = MOVER_COINS.map((coin) => coin.mint);
+const TOP_MINTS = TOP_COINS.map((coin) => coin.mint);
 
 export function MarketView() {
   return (
@@ -19,6 +22,7 @@ export function MarketView() {
       <Ticker />
       <WatchStrip />
       <div className="px-5">
+        <TopCoins />
         <Memecoins />
       </div>
     </div>
@@ -50,8 +54,12 @@ function Change({ pct, className }: { pct: number | null | undefined; className?
 function Ticker() {
   const prices = useLivePrices(TICKER_MINTS, 30_000);
   const setSheet = useVela((state) => state.setSheet);
+  // Top movers: biggest 24h swings first, either direction.
+  const ordered = [...MOVER_COINS].sort(
+    (a, b) => Math.abs(prices[b.mint]?.change24hPct ?? 0) - Math.abs(prices[a.mint]?.change24hPct ?? 0),
+  );
   const chips = (copy: number) =>
-    TICKER_COINS.map((coin) => {
+    ordered.map((coin) => {
       const quote = prices[coin.mint];
       return (
         <button
@@ -81,7 +89,7 @@ function Ticker() {
       );
     });
   return (
-    <div className="ticker-viewport mt-4 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="24 hour price changes">
+    <div className="ticker-viewport mt-4 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Top movers, 24 hours">
       <div className="ticker-track flex w-max pl-5">
         {chips(0)}
         {chips(1)}
@@ -91,6 +99,91 @@ function Ticker() {
 }
 
 // ---------- Watchlist ----------
+
+// ---------- Top coins ----------
+
+function Sparkline({ mint, delay, up }: { mint: string; delay: number; up: boolean }) {
+  const [points, setPoints] = useState<number[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    // Staggered so a full list never bursts the history source.
+    const timer = window.setTimeout(() => {
+      void fetch(`/api/history?mint=${mint}&range=1D`)
+        .then((res) => (res.ok ? (res.json() as Promise<{ points?: Array<{ p: number }> }>) : null))
+        .then((body) => {
+          if (alive && body?.points?.length) setPoints(body.points.map((point) => point.p));
+        })
+        .catch(() => {});
+    }, delay);
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+    };
+  }, [mint, delay]);
+  if (!points || points.length < 2) return <span className="block h-7 w-16" aria-hidden />;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const span = max - min || 1;
+  const d = points
+    .map((value, i) => `${i ? "L" : "M"}${((i / (points.length - 1)) * 64).toFixed(1)},${(26 - ((value - min) / span) * 24).toFixed(1)}`)
+    .join(" ");
+  return (
+    <svg viewBox="0 0 64 28" className="block h-7 w-16" aria-hidden>
+      <path d={d} fill="none" strokeWidth="1.5" strokeLinejoin="round" className={up ? "stroke-emerald-400" : "stroke-danger"} />
+    </svg>
+  );
+}
+
+function TopCoins() {
+  const prices = useLivePrices(TOP_MINTS, 30_000);
+  const [expanded, setExpanded] = useState(false);
+  const rows = expanded ? TOP_COINS : TOP_COINS.slice(0, 5);
+  return (
+    <section className="mt-6">
+      <h2 className="text-xl font-semibold tracking-tight">Top coins</h2>
+      <p className="mt-1 text-xs text-muted">Established Solana-ecosystem assets. 24h change.</p>
+      <ul className="mt-3 divide-y divide-line rounded-card border border-line bg-surface">
+        {rows.map((coin, i) => (
+          <TopRow key={coin.mint} coin={coin} quote={prices[coin.mint]} delay={i * 350} />
+        ))}
+      </ul>
+      <button type="button" className="mt-2 w-full py-2 text-sm text-accent" onClick={() => setExpanded((value) => !value)}>
+        {expanded ? "Show less" : `Show ${TOP_COINS.length - 5} more`}
+      </button>
+    </section>
+  );
+}
+
+function TopRow({ coin, quote, delay }: { coin: TopCoin; quote: LiveQuote | undefined; delay: number }) {
+  const setSheet = useVela((state) => state.setSheet);
+  const up = (quote?.change24hPct ?? 0) >= 0;
+  return (
+    <li>
+      <button
+        type="button"
+        className="flex w-full items-center gap-3 px-4 py-3 text-left"
+        onClick={() =>
+          setSheet({
+            kind: "asset",
+            amount: 0,
+            token: { ...coin, priceUsd: quote?.priceUsd ?? null, change24hPct: quote?.change24hPct ?? null },
+          })
+        }
+      >
+        <TokenMark symbol={coin.symbol} src={coin.image} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-medium">{coin.symbol}</span>
+          <span className="block truncate text-xs text-muted">{coin.name}</span>
+        </span>
+        <Sparkline mint={coin.mint} delay={delay} up={up} />
+        <span className="w-24 text-right">
+          <span className="block text-sm tabular-nums">{priceText(quote?.priceUsd)}</span>
+          <Change pct={quote?.change24hPct} className="text-xs" />
+        </span>
+      </button>
+    </li>
+  );
+}
 
 /** Slim row of starred coins under the ticker; hidden until something is starred. */
 function WatchStrip() {
