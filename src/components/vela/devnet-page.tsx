@@ -154,14 +154,14 @@ export default function DevnetPage() {
           <button
             type="button"
             onClick={() => {
-              void navigator.clipboard?.writeText(address);
+              navigator.clipboard?.writeText(address).catch(() => {});
               setToast("Devnet address copied");
             }}
             className="mt-1 flex items-center gap-1.5 font-mono text-xs text-muted"
           >
             {shortAddr(address)} <Copy className="size-3" />
           </button>
-          <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="mt-4 grid grid-cols-3 gap-2 whitespace-nowrap">
             <GhostButton
               disabled={busy !== null}
               onClick={() => {
@@ -169,20 +169,20 @@ export default function DevnetPage() {
                   void run("airdrop", () => airdrop(keypair.publicKey), "Free devnet SOL received");
                   return;
                 }
-                void navigator.clipboard?.writeText(address);
+                navigator.clipboard?.writeText(address).catch(() => {});
                 window.open(PUBLIC_FAUCET, "_blank", "noopener");
                 setFaucetHint(true);
                 setToast("Address copied. Paste it on the Solana faucet.");
               }}
             >
-              <Droplets className="mr-1 size-4" /> {busy === "airdrop" ? "…" : "Free SOL"}
+              <Droplets className="mr-1 size-4" /> {busy === "airdrop" ? "…" : "Get SOL"}
             </GhostButton>
             <GhostButton disabled={busy !== null} onClick={() => { setMode("send"); setConfirming(false); }}>
               <Send className="mr-1 size-4" /> Send
             </GhostButton>
             <GhostButton
               onClick={() => {
-                void navigator.clipboard?.writeText(address);
+                navigator.clipboard?.writeText(address).catch(() => {});
                 setToast("Address copied. Share it to receive SOL or NFTs.");
               }}
             >
