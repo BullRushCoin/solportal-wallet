@@ -25,7 +25,8 @@ export const Route = createFileRoute("/api/prices")({
           const quote = quotes.find((item) => item.mint === mint);
           prices[mint] = { priceUsd: quote && quote.priceUsd > 0 ? quote.priceUsd : null, change24hPct: quote?.change24hPct ?? null };
         }
-        cache.set(key, { at: now, value: prices });
+        // Never cache an empty upstream answer: the next poll should try again.
+        if (quotes.length) cache.set(key, { at: now, value: prices });
         if (cache.size > 200) cache.delete(cache.keys().next().value!);
         return Response.json({ prices, at: now }, { headers: { "cache-control": "no-store" } });
       },

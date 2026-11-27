@@ -107,17 +107,23 @@ function Sparkline({ mint, delay, up }: { mint: string; delay: number; up: boole
   useEffect(() => {
     let alive = true;
     // Staggered so a full list never bursts the history source.
-    const timer = window.setTimeout(() => {
+    const timers: number[] = [];
+    const load = (triesLeft: number) => {
       void fetch(`/api/history?mint=${mint}&range=1D`)
         .then((res) => (res.ok ? (res.json() as Promise<{ points?: Array<{ p: number }> }>) : null))
         .then((body) => {
-          if (alive && body?.points?.length) setPoints(body.points.map((point) => point.p));
+          if (!alive) return;
+          if (body?.points?.length) setPoints(body.points.map((point) => point.p));
+          else if (triesLeft > 0) timers.push(window.setTimeout(() => load(triesLeft - 1), 4_000 + delay));
         })
-        .catch(() => {});
-    }, delay);
+        .catch(() => {
+          if (alive && triesLeft > 0) timers.push(window.setTimeout(() => load(triesLeft - 1), 4_000 + delay));
+        });
+    };
+    timers.push(window.setTimeout(() => load(2), delay));
     return () => {
       alive = false;
-      window.clearTimeout(timer);
+      timers.forEach((timer) => window.clearTimeout(timer));
     };
   }, [mint, delay]);
   if (!points || points.length < 2) return <span className="block h-7 w-16" aria-hidden />;
@@ -144,7 +150,7 @@ function TopCoins() {
       <p className="mt-1 text-xs text-muted">Established Solana-ecosystem assets. 24h change.</p>
       <ul className="mt-3 divide-y divide-line rounded-card border border-line bg-surface">
         {rows.map((coin, i) => (
-          <TopRow key={coin.mint} coin={coin} quote={prices[coin.mint]} delay={i * 350} />
+          <TopRow key={coin.mint} coin={coin} quote={prices[coin.mint]} delay={i * 700} />
         ))}
       </ul>
       <button type="button" className="mt-2 w-full py-2 text-sm text-accent" onClick={() => setExpanded((value) => !value)}>
