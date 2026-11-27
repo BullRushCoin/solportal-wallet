@@ -28,7 +28,7 @@ Live: https://solportal-wallet.vercel.app (installable PWA, add it to your home 
 ## Run it
 
 ```bash
-git clone https://github.com/BullRushCoin/solportal-wallet.git
+git clone https://github.com/SolPortalWallet/solportal-wallet.git
 cd solportal-wallet
 npm install
 npm run dev
