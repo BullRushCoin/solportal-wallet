@@ -3,6 +3,7 @@ import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Globe, MessageCircle, Send
 import type { TokenLinks } from "@/lib/vela/social";
 import { Area, AreaChart, ReferenceDot, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatAmt, formatChangePct, formatUsd } from "@/lib/vela/format";
+import { buyCoin } from "@/lib/vela/open-coin";
 import { useVela, type AssetSheetToken } from "@/lib/vela/store";
 import { Overlay, TokenMark } from "@/components/vela/ui";
 import { WatchStar } from "@/components/vela/watch-star";
@@ -37,7 +38,6 @@ function timeLabel(t: number, range: Range): string {
 
 export function AssetSheet({ token, amount, viewOnly }: { token: AssetSheetToken; amount: number; viewOnly?: boolean }) {
   const setSheet = useVela((state) => state.setSheet);
-  const setMore = useVela((state) => state.setMore);
   const openSwap = useVela((state) => state.openSwap);
 
   const [range, setRange] = useState<Range>("1D");
@@ -250,7 +250,7 @@ export function AssetSheet({ token, amount, viewOnly }: { token: AssetSheetToken
       {viewOnly ? <p className="mt-2 text-center text-xs text-muted">Watch only · actions use your sandbox wallet</p> : null}
 
       <div className="mt-5 grid grid-cols-4 gap-2">
-        <Action icon={<Wallet className="size-5" />} label="Buy" primary onClick={() => { setSheet(null); setMore("buy"); }} />
+        <Action icon={<Wallet className="size-5" />} label="Buy" primary onClick={() => buyCoin({ ...token, priceUsd: price })} />
         <Action icon={<ArrowLeftRight className="size-5" />} label="Swap" onClick={() => { setSheet(null); swap(); }} />
         <Action icon={<ArrowUpRight className="size-5" />} label="Send" onClick={() => setSheet({ kind: "send" })} />
         <Action icon={<ArrowDownLeft className="size-5" />} label="Receive" onClick={() => setSheet({ kind: "receive" })} />

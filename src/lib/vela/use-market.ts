@@ -11,6 +11,11 @@ async function fetchMarket(): Promise<MarketSnapshot> {
   return (await res.json()) as MarketSnapshot;
 }
 
+/** The last market snapshot any screen loaded (or the built-in table before the first load). */
+export function marketSnapshotNow(): MarketSnapshot {
+  return cached ?? fallbackMarketSnapshot();
+}
+
 export async function loadMarket(): Promise<MarketSnapshot> {
   if (inflight) return inflight;
   inflight = fetchMarket()

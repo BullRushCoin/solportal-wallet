@@ -486,33 +486,64 @@ const PARTNER_LIMITS: Record<(typeof PARTNERS)[number], { min: number; max: numb
   Stripe: null,
 };
 
-function useLiveSolPrice(): { price: number; live: boolean; updatedAt: number | null } {
-  const fallback = tokenBySymbol("SOL").priceUsd;
-  const [state, setState] = useState<{ price: number; live: boolean; updatedAt: number | null }>({
-    price: fallback,
+const SOL_PRICE_POLL_MS = 5_000;
+/** Without a fresh tick for this long the dot goes grey again. */
+const SOL_PRICE_STALE_MS = 30_000;
+
+type SolPriceState = { price: number; live: boolean; updatedAt: number | null };
+
+async function fetchSolPrice(): Promise<number | null> {
+  // Single-mint route first; the batch route is a separate cache and Jupiter call, so it covers a miss.
+  const urls = [`/api/price?mint=${SOL_MINT}`, `/api/prices?mints=${SOL_MINT}`];
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) continue;
+      const body = (await res.json()) as { priceUsd?: number | null; prices?: Record<string, { priceUsd: number | null }> };
+      const price = body.priceUsd ?? body.prices?.[SOL_MINT]?.priceUsd ?? null;
+      if (typeof price === "number" && Number.isFinite(price) && price > 0) return price;
+    } catch {
+      /* try the next source */
+    }
+  }
+  return null;
+}
+
+function useLiveSolPrice(): SolPriceState {
+  const market = useMarket();
+  const marketSol = market.tokens.SOL;
+  const marketLive = market.live && marketSol?.source === "live" && marketSol.priceUsd > 0;
+  const [state, setState] = useState<SolPriceState>(() => ({
+    price: marketLive ? marketSol.priceUsd : tokenBySymbol("SOL").priceUsd,
     live: false,
     updatedAt: null,
-  });
+  }));
+  const [now, setNow] = useState(() => Date.now());
+
+  // Until the first tick lands, show the market snapshot's live SOL price rather than the built-in table.
+  useEffect(() => {
+    if (marketLive) setState((prev) => (prev.updatedAt === null ? { ...prev, price: marketSol.priceUsd } : prev));
+  }, [marketLive, marketSol?.priceUsd]);
+
   useEffect(() => {
     let stopped = false;
     const tick = async () => {
-      try {
-        const res = await fetch(`/api/price?mint=${SOL_MINT}`, { cache: "no-store" });
-        if (!res.ok) return;
-        const body = (await res.json()) as { priceUsd: number | null };
-        if (!stopped && body.priceUsd) setState({ price: body.priceUsd, live: true, updatedAt: Date.now() });
-      } catch {
-        /* keep last price */
-      }
+      const price = await fetchSolPrice();
+      const at = Date.now();
+      if (stopped) return;
+      setNow(at);
+      if (price !== null) setState({ price, live: true, updatedAt: at });
     };
     void tick();
-    const id = window.setInterval(() => void tick(), 5000);
+    const id = window.setInterval(() => void tick(), SOL_PRICE_POLL_MS);
     return () => {
       stopped = true;
       window.clearInterval(id);
     };
   }, []);
-  return state;
+
+  const fresh = state.live && state.updatedAt !== null && now - state.updatedAt < SOL_PRICE_STALE_MS;
+  return { ...state, live: fresh };
 }
 
 function BuyPage() {

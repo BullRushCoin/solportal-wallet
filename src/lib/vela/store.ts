@@ -83,6 +83,8 @@ export type BrowserState = {
 export type SwapPrefill = {
   input: string;
   output: string;
+  /** Buy flow from a coin sheet: keep this input/output pair as given and focus the amount. */
+  buy?: boolean;
   token?: {
     symbol: string;
     name: string;
@@ -777,7 +779,7 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
         set({
           tab: "swap",
           more: "root",
-          swapPrefill: { input: from.input, output: from.output || preferSwapOutput(from.input), token: from.token },
+          swapPrefill: { input: from.input, output: from.output || preferSwapOutput(from.input), token: from.token, buy: from.buy },
         });
       },
       clearSwapPrefill: () => set({ swapPrefill: null }),

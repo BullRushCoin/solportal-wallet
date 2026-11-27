@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowDown, ChevronDown, RefreshCw, SlidersHorizontal } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, ArrowDown, ChevronDown, CreditCard, RefreshCw, SlidersHorizontal } from "lucide-react";
 import { PLATFORM_FEE_BPS, DEFAULT_SLIPPAGE_BPS, quoteDemo } from "@/lib/vela/jupiter";
 import { formatAmt, formatUsd } from "@/lib/vela/format";
 import { withLivePrice } from "@/lib/vela/market";
@@ -40,6 +40,9 @@ export function SwapView() {
   const setSheet = useVela((state) => state.setSheet);
   const prefill = useVela((state) => state.swapPrefill);
   const clearSwapPrefill = useVela((state) => state.clearSwapPrefill);
+  const setMore = useVela((state) => state.setMore);
+  const amountRef = useRef<HTMLInputElement>(null);
+  const [focusTick, setFocusTick] = useState(0);
   const [inTok, setInTok] = useState<CustomToken>(() => defaultToken("SOL"));
   const [outTok, setOutTok] = useState<CustomToken>(() => defaultToken("USDC"));
   const [amount, setAmount] = useState("1");
@@ -51,9 +54,10 @@ export function SwapView() {
   useEffect(() => {
     if (!prefill) return;
     const resolve = (symbol: string): CustomToken | null => {
-      const known = tokenLookup(symbol);
-      if (known) return asSwapSideToken(known);
       const meta = prefill.token;
+      const known = tokenLookup(symbol);
+      // A coin that only shares a symbol with a known token (another "TSLA") keeps its own mint.
+      if (known && (!meta || meta.symbol !== symbol || meta.mint === known.mint)) return asSwapSideToken(known);
       if (!meta || meta.symbol !== symbol) return null;
       return {
         symbol: holdingKeyFor(meta.symbol, meta.mint),
@@ -66,6 +70,18 @@ export function SwapView() {
         verified: false,
       };
     };
+    if (prefill.buy) {
+      // Buy from a coin sheet: pay with the chosen SOL/USDC, receive the coin, type an amount.
+      const coin = resolve(prefill.output);
+      if (coin) {
+        setOutTok(coin);
+        setInTok(defaultToken(prefill.input));
+        setAmount("");
+        setFocusTick((tick) => tick + 1);
+      }
+      clearSwapPrefill();
+      return;
+    }
     const first = resolve(prefill.input);
     const second = resolve(prefill.output) ?? defaultToken("USDC");
     if (first && (useVela.getState().holdings[first.symbol] ?? 0) > 0) {
@@ -79,7 +95,13 @@ export function SwapView() {
     clearSwapPrefill();
   }, [prefill, clearSwapPrefill]);
 
+  useEffect(() => {
+    if (focusTick) amountRef.current?.focus();
+  }, [focusTick]);
+
   const meta = useTokenMeta([inTok.mint, outTok.mint]);
+  // A coin opened from a sheet starts unverified; Jupiter's metadata settles it, as in the token picker.
+  const outUnverified = outTok.verified === false && meta[outTok.mint]?.verified !== true;
   const inLive = withLivePrice(inTok, market.tokens[inTok.symbol]);
   const outLive = withLivePrice(outTok, market.tokens[outTok.symbol]);
   const inSide: SwapSide = { symbol: inTok.symbol, mint: inTok.mint, decimals: inTok.decimals, priceUsd: inLive.priceUsd };
@@ -99,6 +121,7 @@ export function SwapView() {
   });
 
   const balance = holdings[inTok.symbol] ?? 0;
+  const noFunds = Boolean(wallet) && !watchAddress && !((holdings.SOL ?? 0) > 0) && !((holdings.USDC ?? 0) > 0) && (inTok.symbol === "SOL" || inTok.symbol === "USDC");
   const outBalance = holdings[outTok.symbol] ?? 0;
   const viewOnly = Boolean(watchAddress);
   const shown = quote && !pending ? quote : null;
@@ -124,7 +147,7 @@ export function SwapView() {
       amountOut: shown.outUi,
       feeUsd: shown.feeUsd,
       networkFeeSol: priorityFeeSol(priority),
-      outputToken: isNew ? { ...outTok, priceUsd: outPrice } : undefined,
+      outputToken: isNew ? { ...outTok, priceUsd: outPrice, verified: !outUnverified } : undefined,
       effects: [
         { symbol: inTok.symbol, delta: -amountIn, usd: -inUsd },
         { symbol: outTok.symbol, delta: shown.outUi, usd: outUsd },
@@ -148,7 +171,7 @@ export function SwapView() {
         detail: "This trade moves the pool price. Try a smaller amount.",
       });
     }
-    if (outTok.verified === false) {
+    if (outUnverified) {
       intent.warnings.unshift({ level: "warn", title: "Unverified token", detail: `Jupiter does not mark ${outTok.symbol} as verified. Check the mint ${shortMint(outTok.mint)}.` });
     }
     const reason = intentBlocked(intent, holdings);
@@ -216,6 +239,7 @@ export function SwapView() {
       <div className="relative mt-4">
         <TokenField
           label="You pay"
+          inputRef={amountRef}
           token={inTok}
           icon={inTok.image ?? meta[inTok.mint]?.icon}
           amount={amount}
@@ -246,7 +270,19 @@ export function SwapView() {
         />
       </div>
 
-      {outTok.verified === false ? (
+      {noFunds ? (
+        <button
+          type="button"
+          onClick={() => setMore("buy")}
+          className="mt-3 flex w-full items-center gap-3 rounded-card border border-accent/40 bg-accent/10 px-3 py-2.5 text-left text-sm"
+        >
+          <CreditCard className="size-4 shrink-0 text-accent" />
+          <span className="min-w-0 flex-1 text-pretty">No SOL to swap.</span>
+          <span className="shrink-0 font-medium text-accent">Add funds with card</span>
+        </button>
+      ) : null}
+
+      {outUnverified ? (
         <p className="mt-3 flex items-center gap-2 rounded-card border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs text-amber-300">
           <AlertTriangle className="size-3.5 shrink-0" />
           <span className="min-w-0">
@@ -399,7 +435,9 @@ function TokenField({
   onPick,
   onMax,
   readOnly,
+  inputRef,
 }: {
+  inputRef?: React.Ref<HTMLInputElement>;
   label: string;
   token: CustomToken;
   icon?: string | null;
@@ -433,6 +471,7 @@ function TokenField({
           <ChevronDown className="size-4 shrink-0 text-muted" />
         </button>
         <input
+          ref={inputRef}
           inputMode="decimal"
           readOnly={readOnly}
           aria-label={`${label} amount`}
