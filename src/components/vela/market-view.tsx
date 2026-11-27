@@ -102,30 +102,7 @@ function Ticker() {
 
 // ---------- Top coins ----------
 
-function Sparkline({ mint, delay, up }: { mint: string; delay: number; up: boolean }) {
-  const [points, setPoints] = useState<number[] | null>(null);
-  useEffect(() => {
-    let alive = true;
-    // Staggered so a full list never bursts the history source.
-    const timers: number[] = [];
-    const load = (triesLeft: number) => {
-      void fetch(`/api/history?mint=${mint}&range=1D`)
-        .then((res) => (res.ok ? (res.json() as Promise<{ points?: Array<{ p: number }> }>) : null))
-        .then((body) => {
-          if (!alive) return;
-          if (body?.points?.length) setPoints(body.points.map((point) => point.p));
-          else if (triesLeft > 0) timers.push(window.setTimeout(() => load(triesLeft - 1), 4_000 + delay));
-        })
-        .catch(() => {
-          if (alive && triesLeft > 0) timers.push(window.setTimeout(() => load(triesLeft - 1), 4_000 + delay));
-        });
-    };
-    timers.push(window.setTimeout(() => load(2), delay));
-    return () => {
-      alive = false;
-      timers.forEach((timer) => window.clearTimeout(timer));
-    };
-  }, [mint, delay]);
+function Sparkline({ points, up }: { points: number[] | undefined; up: boolean }) {
   if (!points || points.length < 2) return <span className="block h-7 w-16" aria-hidden />;
   const min = Math.min(...points);
   const max = Math.max(...points);
@@ -143,14 +120,27 @@ function Sparkline({ mint, delay, up }: { mint: string; delay: number; up: boole
 function TopCoins() {
   const prices = useLivePrices(TOP_MINTS, 30_000);
   const [expanded, setExpanded] = useState(false);
+  const [sparks, setSparks] = useState<Record<string, number[]>>({});
+  useEffect(() => {
+    let alive = true;
+    void fetch("/api/sparks")
+      .then((res) => (res.ok ? (res.json() as Promise<{ sparks?: Record<string, number[]> }>) : null))
+      .then((body) => {
+        if (alive && body?.sparks) setSparks(body.sparks);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
   const rows = expanded ? TOP_COINS : TOP_COINS.slice(0, 5);
   return (
     <section className="mt-6">
       <h2 className="text-xl font-semibold tracking-tight">Top coins</h2>
       <p className="mt-1 text-xs text-muted">Established Solana-ecosystem assets. 24h change.</p>
       <ul className="mt-3 divide-y divide-line rounded-card border border-line bg-surface">
-        {rows.map((coin, i) => (
-          <TopRow key={coin.mint} coin={coin} quote={prices[coin.mint]} delay={i * 700} />
+        {rows.map((coin) => (
+          <TopRow key={coin.mint} coin={coin} quote={prices[coin.mint]} points={sparks[coin.mint]} />
         ))}
       </ul>
       <button type="button" className="mt-2 w-full py-2 text-sm text-accent" onClick={() => setExpanded((value) => !value)}>
@@ -160,7 +150,7 @@ function TopCoins() {
   );
 }
 
-function TopRow({ coin, quote, delay }: { coin: TopCoin; quote: LiveQuote | undefined; delay: number }) {
+function TopRow({ coin, quote, points }: { coin: TopCoin; quote: LiveQuote | undefined; points: number[] | undefined }) {
   const setSheet = useVela((state) => state.setSheet);
   const up = (quote?.change24hPct ?? 0) >= 0;
   return (
@@ -181,7 +171,7 @@ function TopRow({ coin, quote, delay }: { coin: TopCoin; quote: LiveQuote | unde
           <span className="block truncate font-medium">{coin.symbol}</span>
           <span className="block truncate text-xs text-muted">{coin.name}</span>
         </span>
-        <Sparkline mint={coin.mint} delay={delay} up={up} />
+        <Sparkline points={points} up={up} />
         <span className="w-24 text-right">
           <span className="block text-sm tabular-nums">{priceText(quote?.priceUsd)}</span>
           <Change pct={quote?.change24hPct} className="text-xs" />
