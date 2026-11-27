@@ -13,6 +13,7 @@ import {
 
 /** Free, keyless sources only. */
 const GECKO_NEW_POOLS = "https://api.geckoterminal.com/api/v2/networks/solana/new_pools?include=base_token&page=1";
+const GECKO_TRENDING = "https://api.geckoterminal.com/api/v2/networks/solana/trending_pools?include=base_token&page=1&duration=6h";
 const DEX_PROFILES = "https://api.dexscreener.com/token-profiles/latest/v1";
 const DEX_TOKENS = "https://api.dexscreener.com/tokens/v1/solana";
 const PUBLIC_RPC = "https://api.mainnet-beta.solana.com";
@@ -26,11 +27,13 @@ type Entry<T> = { at: number; value: T };
 const GECKO_KEEP_MS = 3 * 60_000;
 const GECKO_BACKOFF_MS = 30_000;
 
-let feedCache: Entry<MemeFeed> | null = null;
-/** Last good GeckoTerminal list, reused for a few minutes when it rate-limits us. */
-let geckoCache: Entry<MemeCoin[]> | null = null;
-let geckoBackoffUntil = 0;
-let inflight: Promise<MemeFeed> | null = null;
+export type MemeView = "new" | "trending";
+
+const feedCache = new Map<MemeView, Entry<MemeFeed>>();
+/** Last good GeckoTerminal list per view, reused for a few minutes when it rate-limits us. */
+const geckoCache = new Map<MemeView, Entry<MemeCoin[]>>();
+const geckoBackoffUntil = new Map<MemeView, number>();
+const inflight = new Map<MemeView, Promise<MemeFeed>>();
 const safetyCache = new Map<string, Entry<MemeSafety | null>>();
 
 async function getJson(url: string, timeoutMs = 7_000): Promise<unknown> {
@@ -91,21 +94,23 @@ async function attachSafety(coins: MemeCoin[]): Promise<MemeCoin[]> {
   return coins.map((coin) => ({ ...coin, safety: safetyCache.get(coin.mint)?.value ?? null }));
 }
 
-async function buildFeed(): Promise<MemeFeed> {
+async function buildFeed(view: MemeView): Promise<MemeFeed> {
   const sources: string[] = [];
   const now = Date.now();
+  const trending = view === "trending";
   const [geckoRaw, profilesRaw] = await Promise.all([
-    now < geckoBackoffUntil
+    now < (geckoBackoffUntil.get(view) ?? 0)
       ? Promise.resolve(null)
-      : getJson(GECKO_NEW_POOLS).catch(() => {
-          geckoBackoffUntil = Date.now() + GECKO_BACKOFF_MS;
+      : getJson(trending ? GECKO_TRENDING : GECKO_NEW_POOLS).catch(() => {
+          geckoBackoffUntil.set(view, Date.now() + GECKO_BACKOFF_MS);
           return null;
         }),
-    getJson(DEX_PROFILES).catch(() => null),
+    trending ? Promise.resolve(null) : getJson(DEX_PROFILES).catch(() => null),
   ]);
   let gecko = geckoRaw ? parseGeckoNewPools(geckoRaw) : [];
-  if (gecko.length) geckoCache = { at: now, value: gecko };
-  else if (geckoCache && now - geckoCache.at < GECKO_KEEP_MS) gecko = geckoCache.value;
+  const cached = geckoCache.get(view);
+  if (gecko.length) geckoCache.set(view, { at: now, value: gecko });
+  else if (cached && now - cached.at < GECKO_KEEP_MS) gecko = cached.value;
   const profiles = profilesRaw ? parseDexProfiles(profilesRaw) : [];
   if (gecko.length) sources.push("geckoterminal");
   if (profiles.length) sources.push("dexscreener");
@@ -118,29 +123,38 @@ async function buildFeed(): Promise<MemeFeed> {
   const pairs = parseDexPairs(pairPayloads.flatMap((payload) => asArray(payload)));
   if (pairs.size && !sources.includes("dexscreener")) sources.push("dexscreener");
 
-  const merged = mergeFeed(gecko, profiles, pairs);
+  let merged = mergeFeed(gecko, profiles, pairs);
+  if (trending) {
+    // Keep GeckoTerminal's trending rank instead of newest-first.
+    const rank = new Map(gecko.map((coin, i) => [coin.mint, i]));
+    merged = merged.sort((a, b) => (rank.get(a.mint) ?? 99) - (rank.get(b.mint) ?? 99));
+  }
   if (!merged.length) throw new Error("feed empty");
   const coins = await attachSafety(merged);
   return { coins, updatedAt: Date.now(), sources, stale: false };
 }
 
-/** Cached ~18 s and de-duplicated across concurrent requests so upstreams never see a burst. */
-export async function loadMemeFeed(): Promise<MemeFeed> {
+/** Cached ~18 s per view and de-duplicated across concurrent requests so upstreams never see a burst. */
+export async function loadMemeFeed(view: MemeView = "new"): Promise<MemeFeed> {
   const now = Date.now();
-  if (feedCache && now - feedCache.at < FEED_TTL_MS) return feedCache.value;
-  if (inflight) return inflight;
-  inflight = buildFeed()
+  const hit = feedCache.get(view);
+  if (hit && now - hit.at < FEED_TTL_MS) return hit.value;
+  const running = inflight.get(view);
+  if (running) return running;
+  const job = buildFeed(view)
     .then((feed) => {
-      feedCache = { at: Date.now(), value: feed };
+      feedCache.set(view, { at: Date.now(), value: feed });
       return feed;
     })
     .catch((err: unknown) => {
       // Rate limited or down: serve the last good feed, marked stale.
-      if (feedCache) return { ...feedCache.value, stale: true };
+      const last = feedCache.get(view);
+      if (last) return { ...last.value, stale: true };
       throw err;
     })
     .finally(() => {
-      inflight = null;
+      inflight.delete(view);
     });
-  return inflight;
+  inflight.set(view, job);
+  return job;
 }

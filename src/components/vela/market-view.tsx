@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
-import { ArrowDownRight, ArrowUpRight, Globe, Info, MessageCircle, Pause, Play, Send as SendIcon } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Globe, Star, Info, MessageCircle, Pause, Play, Send as SendIcon } from "lucide-react";
 import { formatCompactUsd, formatUsd, shortAddr } from "@/lib/vela/format";
 import { TICKER_COINS } from "@/lib/vela/market-tickers";
 import { buyRatio, formatAge, MEME_SORTS, sortMemeCoins, type MemeCoin, type MemeSort } from "@/lib/vela/memecoins";
 import { useVela, type WatchItem } from "@/lib/vela/store";
 import { useLivePrices, useMemeFeed, useNow, type LiveQuote } from "@/lib/vela/use-live";
-import { SectionLabel, TokenMark } from "@/components/vela/ui";
+import { TokenMark } from "@/components/vela/ui";
 import { WatchStar } from "@/components/vela/watch-star";
 
 const TICKER_MINTS = TICKER_COINS.map((coin) => coin.mint);
@@ -17,8 +17,8 @@ export function MarketView() {
         <h1 className="text-3xl font-semibold tracking-tight">Market</h1>
       </div>
       <Ticker />
+      <WatchStrip />
       <div className="px-5">
-        <Watchlist />
         <Memecoins />
       </div>
     </div>
@@ -92,26 +92,60 @@ function Ticker() {
 
 // ---------- Watchlist ----------
 
-function Watchlist() {
+/** Slim row of starred coins under the ticker; hidden until something is starred. */
+function WatchStrip() {
+  const watchlist = useVela((state) => state.watchlist);
+  const setSheet = useVela((state) => state.setSheet);
+  const mints = useMemo(() => watchlist.map((item) => item.mint), [watchlist]);
+  const prices = useLivePrices(mints, 30_000);
+  if (!watchlist.length) return null;
+  return (
+    <div className="mt-2 flex gap-2 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Watchlist">
+      <span className="grid h-8 shrink-0 place-items-center text-[#e0b86a]" aria-hidden>
+        <Star className="size-4 fill-current" />
+      </span>
+      {watchlist.map((item) => {
+        const quote = prices[item.mint];
+        return (
+          <button
+            key={item.mint}
+            type="button"
+            onClick={() =>
+              setSheet({
+                kind: "asset",
+                amount: 0,
+                token: { ...item, priceUsd: quote?.priceUsd ?? null, change24hPct: quote?.change24hPct ?? null },
+              })
+            }
+            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[#e0b86a]/30 bg-surface px-2.5 text-xs"
+          >
+            <TokenMark symbol={item.symbol} src={item.image} small />
+            <span className="font-semibold">{item.symbol}</span>
+            <Change pct={quote?.change24hPct} className="text-[11px]" />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function WatchList() {
   const watchlist = useVela((state) => state.watchlist);
   const mints = useMemo(() => watchlist.map((item) => item.mint), [watchlist]);
   const prices = useLivePrices(mints, 30_000);
+  if (!watchlist.length) {
+    return (
+      <p className="mt-3 rounded-card border border-line bg-surface px-4 py-6 text-center text-sm text-muted">
+        Tap the star on any coin to save it here.
+      </p>
+    );
+  }
   return (
-    <section className="mt-6">
-      <SectionLabel>Watchlist</SectionLabel>
-      {watchlist.length === 0 ? (
-        <div className="mt-3 rounded-card border border-line bg-surface px-4 py-6 text-center">
-          <p className="font-medium">No tokens yet</p>
-          <p className="mt-1 text-sm text-muted">Star any token to add it to your watchlist</p>
-        </div>
-      ) : (
-        <ul className="mt-3 divide-y divide-line rounded-card border border-line bg-surface">
-          {watchlist.map((item) => (
-            <WatchRow key={item.mint} item={item} quote={prices[item.mint]} />
-          ))}
-        </ul>
-      )}
-    </section>
+    <ul className="mt-3 divide-y divide-line rounded-card border border-line bg-surface">
+      {watchlist.map((item) => (
+        <WatchRow key={item.mint} item={item} quote={prices[item.mint]} />
+      ))}
+    </ul>
   );
 }
 
@@ -150,10 +184,12 @@ function WatchRow({ item, quote }: { item: WatchItem; quote: LiveQuote | undefin
 function Memecoins() {
   const [paused, setPaused] = useState(false);
   const [info, setInfo] = useState(false);
-  const { feed, error, loading } = useMemeFeed(paused, 15_000);
+  const [sort, setSort] = useState<MemeSort | "watchlist">("new");
+  const watching = sort === "watchlist";
+  const { feed, error, loading } = useMemeFeed(paused || watching, 15_000, sort === "trending" ? "trending" : "new");
   const now = useNow(1_000);
-  const [sort, setSort] = useState<MemeSort>("new");
-  const coins = useMemo(() => (feed ? sortMemeCoins(feed.coins, sort) : []), [feed, sort]);
+  // Trending comes pre-ranked from its own feed; the rest sort the new-pools feed.
+  const coins = useMemo(() => (feed ? (sort === "trending" || sort === "watchlist" ? feed.coins : sortMemeCoins(feed.coins, sort)) : []), [feed, sort]);
   const live = !paused && !error && !feed?.stale;
 
   return (
@@ -181,8 +217,22 @@ function Memecoins() {
           <Info className="size-5" />
         </button>
       </div>
-      <p className="mt-1 text-xs text-muted">New Solana pools. Not advice: most new coins go to zero.</p>
+      <p className="mt-1 text-xs text-muted">
+        {watching
+          ? "Coins you've starred, with live prices."
+          : `${sort === "trending" ? "Hottest Solana pools over the last 6 hours." : "New Solana pools."} Not advice: most new coins go to zero.`}
+      </p>
       <div role="tablist" aria-label="Sort memecoins" className="[scrollbar-width:none] -mx-5 mt-3 flex gap-2 overflow-x-auto px-5">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={watching}
+          onClick={() => setSort("watchlist")}
+          className={`inline-flex h-8 shrink-0 items-center gap-1 rounded-full border px-3 text-xs ${watching ? "border-accent bg-accent text-on-accent" : "border-line bg-surface text-muted"}`}
+        >
+          <Star className={`size-3.5 ${watching ? "fill-current" : ""}`} aria-hidden />
+          Watchlist
+        </button>
         {MEME_SORTS.map((option) => (
           <button
             key={option.id}
@@ -219,7 +269,9 @@ function Memecoins() {
         </div>
       ) : null}
 
-      {loading && !feed ? (
+      {watching ? (
+        <WatchList />
+      ) : loading && !feed ? (
         <ul className="mt-3 space-y-3" aria-label="Loading">
           {[0, 1, 2].map((key) => (
             <li key={key} className="h-36 animate-pulse rounded-card border border-line bg-surface" />

@@ -54,18 +54,28 @@ export function useLivePrices(mints: string[], ms = 30_000): Record<string, Live
 export type FeedState = { feed: MemeFeed | null; error: boolean; loading: boolean };
 
 /** The memecoin feed, polled every `ms` while visible and not paused. */
-export function useMemeFeed(paused: boolean, ms = 15_000): FeedState {
+export function useMemeFeed(paused: boolean, ms = 15_000, view: "new" | "trending" = "new"): FeedState {
   const [state, setState] = useState<FeedState>({ feed: null, error: false, loading: true });
-  useVisiblePoll(
-    () => {
-      void fetch("/api/memecoins")
-        .then((res) => (res.ok ? (res.json() as Promise<MemeFeed>) : Promise.reject(new Error("feed"))))
-        .then((feed) => setState({ feed, error: false, loading: false }))
-        .catch(() => setState((prev) => ({ ...prev, error: true, loading: false })));
-    },
-    ms,
-    !paused,
-  );
+  const viewRef = useRef(view);
+  const load = () => {
+    const wanted = viewRef.current;
+    void fetch(wanted === "trending" ? "/api/memecoins?view=trending" : "/api/memecoins")
+      .then((res) => (res.ok ? (res.json() as Promise<MemeFeed>) : Promise.reject(new Error("feed"))))
+      .then((feed) => {
+        if (viewRef.current === wanted) setState({ feed, error: false, loading: false });
+      })
+      .catch(() => {
+        if (viewRef.current === wanted) setState((prev) => ({ ...prev, error: true, loading: false }));
+      });
+  };
+  useEffect(() => {
+    if (viewRef.current === view) return;
+    viewRef.current = view;
+    setState({ feed: null, error: false, loading: true });
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
+  useVisiblePoll(load, ms, !paused);
   return state;
 }
 
