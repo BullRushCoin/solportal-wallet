@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { sandboxIncineratorInputs, type IncineratorInput, type IncineratorPlan } from "@/lib/vela/incinerator";
+import { useVela } from "@/lib/vela/store";
 
 export function useIncinerator(options: { address?: string | null; holdings?: Record<string, number> | null }) {
   const { address, holdings } = options;
+  const customTokens = useVela((state) => state.customTokens);
   const [data, setData] = useState<IncineratorPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -10,14 +12,14 @@ export function useIncinerator(options: { address?: string | null; holdings?: Re
   const tokenKey = useMemo(() => {
     if (address) return "";
     if (!holdings) return "";
-    return sandboxIncineratorInputs(holdings)
+    return sandboxIncineratorInputs(holdings, customTokens)
       .map((item) => `${item.mint}:${item.amount}`)
       .join("|");
-  }, [address, holdings]);
+  }, [address, holdings, customTokens]);
 
   useEffect(() => {
     const controller = new AbortController();
-    const inputs: IncineratorInput[] = !address && holdings ? sandboxIncineratorInputs(holdings) : [];
+    const inputs: IncineratorInput[] = !address && holdings ? sandboxIncineratorInputs(holdings, customTokens) : [];
     if (!address && inputs.length === 0) {
       setData(null);
       setError(null);
@@ -53,7 +55,7 @@ export function useIncinerator(options: { address?: string | null; holdings?: Re
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [address, tokenKey, holdings]);
+  }, [address, tokenKey, holdings, customTokens]);
 
   return { data, error, loading };
 }

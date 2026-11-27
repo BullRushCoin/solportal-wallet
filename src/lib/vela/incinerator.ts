@@ -137,8 +137,11 @@ export function summarizePlan(
 /** Sandbox leftover accounts with a zero balance that still have reclaimable rent. */
 export const SANDBOX_EMPTY_ACCOUNT_SYMBOLS = new Set(["SAMO"]);
 
-export function sandboxIncineratorInputs(holdings: Record<string, number>): IncineratorInput[] {
-  return TOKENS.filter((token) => token.symbol !== "SOL").flatMap((token) => {
+export function sandboxIncineratorInputs(
+  holdings: Record<string, number>,
+  customTokens: ReadonlyArray<{ symbol: string; name: string; mint: string; decimals: number; priceUsd: number; image?: string | null }> = [],
+): IncineratorInput[] {
+  const known = TOKENS.filter((token) => token.symbol !== "SOL").flatMap((token) => {
     const amount = holdings[token.symbol];
     if (amount === undefined) return [];
     if (amount === 0 && !SANDBOX_EMPTY_ACCOUNT_SYMBOLS.has(token.symbol)) return [];
@@ -153,6 +156,25 @@ export function sandboxIncineratorInputs(holdings: Record<string, number>): Inci
       },
     ];
   });
+  const seen = new Set(known.map((item) => item.mint));
+  // Tokens bought through Swap live in customTokens, keyed in holdings by their (possibly suffixed) symbol.
+  const custom = customTokens.flatMap((token) => {
+    const amount = holdings[token.symbol];
+    if (!(amount > 0) || seen.has(token.mint) || isNativeSol(token.mint)) return [];
+    seen.add(token.mint);
+    return [
+      {
+        mint: token.mint,
+        symbol: token.symbol,
+        name: token.name,
+        amount,
+        decimals: token.decimals,
+        priceUsd: token.priceUsd > 0 ? token.priceUsd : null,
+        image: token.image ?? null,
+      },
+    ];
+  });
+  return [...known, ...custom];
 }
 
 export function preferSwapOutput(fromSymbol: string): string {

@@ -79,3 +79,14 @@ describe("sandboxIncineratorInputs", () => {
     assert.equal(holdingValueUsd(4.2, 0.123)! > 0, true);
   });
 });
+
+it("sandbox incinerator includes tokens bought through Swap", () => {
+  const inputs = sandboxIncineratorInputs({ SOL: 1, WIF2: 3.5, GONE: 0 }, [
+    { symbol: "WIF2", name: "dogwifhat", mint: "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm", decimals: 6, priceUsd: 0.2, image: null },
+    { symbol: "GONE", name: "Gone", mint: "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr", decimals: 9, priceUsd: 0 },
+  ]);
+  const custom = inputs.find((item) => item.symbol === "WIF2");
+  assert.ok(custom);
+  assert.equal(custom?.amount, 3.5);
+  assert.equal(inputs.some((item) => item.symbol === "GONE"), false);
+});
