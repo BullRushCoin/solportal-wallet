@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fallbackMarketSnapshot, type MarketSnapshot } from "@/lib/vela/market";
+import { syncLivePrices } from "@/lib/vela/tokens";
 
 let cached: MarketSnapshot | null = null;
 let inflight: Promise<MarketSnapshot> | null = null;
@@ -21,6 +22,7 @@ export async function loadMarket(): Promise<MarketSnapshot> {
   inflight = fetchMarket()
     .then((snapshot) => {
       cached = snapshot;
+      syncLivePrices(snapshot.tokens);
       for (const listen of listeners) listen(snapshot);
       return snapshot;
     })

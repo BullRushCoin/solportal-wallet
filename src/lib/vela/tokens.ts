@@ -24,7 +24,7 @@ export const TOKENS: Token[] = [
     name: "Solana",
     mint: "So11111111111111111111111111111111111111112",
     decimals: 9,
-    priceUsd: 178.42,
+    priceUsd: 73.21,
     standard: "native",
   },
   {
@@ -49,7 +49,7 @@ export const TOKENS: Token[] = [
     name: "Jupiter",
     mint: "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
     decimals: 6,
-    priceUsd: 0.92,
+    priceUsd: 0.248,
     standard: "spl",
   },
   {
@@ -57,7 +57,7 @@ export const TOKENS: Token[] = [
     name: "Bonk",
     mint: "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
     decimals: 5,
-    priceUsd: 0.0000214,
+    priceUsd: 0.0000219,
     standard: "spl",
   },
   {
@@ -65,7 +65,7 @@ export const TOKENS: Token[] = [
     name: "Jito Staked SOL",
     mint: "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn",
     decimals: 9,
-    priceUsd: 192.15,
+    priceUsd: 96.19,
     standard: "spl",
   },
   {
@@ -73,7 +73,7 @@ export const TOKENS: Token[] = [
     name: "Marinade Staked SOL",
     mint: "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So",
     decimals: 9,
-    priceUsd: 201.4,
+    priceUsd: 103.96,
     standard: "spl",
   },
   {
@@ -81,7 +81,7 @@ export const TOKENS: Token[] = [
     name: "BlazeStake Staked SOL",
     mint: "bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1",
     decimals: 9,
-    priceUsd: 196.8,
+    priceUsd: 97.05,
     standard: "spl",
   },
   {
@@ -89,7 +89,7 @@ export const TOKENS: Token[] = [
     name: "Sanctum Infinity",
     mint: "5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm",
     decimals: 9,
-    priceUsd: 251.3,
+    priceUsd: 107.16,
     standard: "spl",
   },
   {
@@ -97,7 +97,7 @@ export const TOKENS: Token[] = [
     name: "dogwifhat",
     mint: "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",
     decimals: 6,
-    priceUsd: 0.123,
+    priceUsd: 0.138,
     standard: "spl",
   },
   {
@@ -105,7 +105,7 @@ export const TOKENS: Token[] = [
     name: "POPCAT",
     mint: "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr",
     decimals: 9,
-    priceUsd: 0.025,
+    priceUsd: 0.0278,
     standard: "spl",
   },
   {
@@ -121,7 +121,7 @@ export const TOKENS: Token[] = [
     name: "Samoyedcoin",
     mint: "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
     decimals: 9,
-    priceUsd: 0.002,
+    priceUsd: 0.000272,
     standard: "spl",
   },
 ];
@@ -210,4 +210,16 @@ export function holdingsUsd(holdings: Record<string, number>, prices?: Record<st
     const price = prices?.[symbol] ?? tokenLookup(symbol)?.priceUsd ?? 0;
     return sum + amount * price;
   }, 0);
+}
+
+/**
+ * Keep the built-in table in step with live prices, so every screen that reads
+ * `tokenBySymbol(...).priceUsd` (stake, Jito, browser dApps) shows the same SOL price as Swap.
+ */
+export function syncLivePrices(prices: Record<string, { priceUsd?: number | null } | undefined>): void {
+  for (const [symbol, quote] of Object.entries(prices)) {
+    const token = TOKEN_MAP[symbol];
+    const price = quote?.priceUsd;
+    if (token && typeof price === "number" && Number.isFinite(price) && price > 0) token.priceUsd = price;
+  }
 }
