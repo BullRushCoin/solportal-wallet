@@ -14,6 +14,49 @@ type Banner = {
   go: () => void;
 };
 
+function useHomeBanners(): Banner[] {
+  const setMore = useVela((state) => state.setMore);
+  const setTab = useVela((state) => state.setTab);
+  return [
+    {
+      id: "incinerate",
+      kicker: "1 tap",
+      title: "Turn dead coins into SOL",
+      body: "Burn dust and close empty accounts. No dApp needed.",
+      cta: "Clean up",
+      image: "/banners/incinerate.webp",
+      go: () => document.getElementById("incinerator")?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    },
+    {
+      id: "buy",
+      kicker: "Buy",
+      title: "Buy SOL from $20",
+      body: "Pick $20, $25 or $50.",
+      cta: "Buy SOL",
+      image: "/banners/buy.webp",
+      go: () => setMore("buy"),
+    },
+    {
+      id: "market",
+      kicker: "New",
+      title: "Market tab, live memecoins",
+      body: "New pools with mint and freeze checks.",
+      cta: "Open Market",
+      image: "/banners/market.webp",
+      go: () => setTab("market"),
+    },
+    {
+      id: "watch",
+      kicker: "Track",
+      title: "Track any wallet",
+      body: "See live holdings for any address.",
+      cta: "Watch a wallet",
+      image: "/banners/track.webp",
+      go: () => setMore("watch"),
+    },
+  ];
+}
+
 function useBanners(): Banner[] {
   const setMore = useVela((state) => state.setMore);
   const setTab = useVela((state) => state.setTab);
@@ -57,19 +100,54 @@ function useBanners(): Banner[] {
   ];
 }
 
+export function HomeBanners() {
+  const banners = useHomeBanners();
+  return <BannerCarousel banners={banners} storageKey="solportal-home-banners-dismissed" className="-mx-5 mt-6" autoAdvance />;
+}
+
 export function ExploreBanners() {
   const banners = useBanners();
+  return <BannerCarousel banners={banners} storageKey={DISMISS_KEY} className="mt-4" />;
+}
+
+function BannerCarousel({
+  banners,
+  storageKey,
+  className,
+  autoAdvance,
+}: {
+  banners: Banner[];
+  storageKey: string;
+  className: string;
+  autoAdvance?: boolean;
+}) {
+  const [paused, setPaused] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [index, setIndex] = useState(0);
   const track = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
-      if (window.sessionStorage.getItem(DISMISS_KEY) === "1") setHidden(true);
+      if (window.sessionStorage.getItem(storageKey) === "1") setHidden(true);
     } catch {
       /* storage unavailable */
     }
-  }, []);
+  }, [storageKey]);
+
+  useEffect(() => {
+    if (!autoAdvance || paused || hidden) return;
+    const timer = window.setInterval(() => {
+      const el = track.current;
+      if (!el) return;
+      const card = el.firstElementChild as HTMLElement | null;
+      const step = card ? card.offsetWidth + 12 : el.clientWidth;
+      const current = Math.round(el.scrollLeft / step);
+      const next = current >= banners.length - 1 ? 0 : current + 1;
+      const target = el.children[next] as HTMLElement | undefined;
+      if (target) el.scrollTo({ left: target.offsetLeft - el.offsetLeft - 20, behavior: "smooth" });
+    }, 4500);
+    return () => window.clearInterval(timer);
+  }, [autoAdvance, paused, hidden, banners.length]);
 
   if (hidden) return null;
 
@@ -90,17 +168,19 @@ export function ExploreBanners() {
   const dismiss = () => {
     setHidden(true);
     try {
-      window.sessionStorage.setItem(DISMISS_KEY, "1");
+      window.sessionStorage.setItem(storageKey, "1");
     } catch {
       /* storage unavailable */
     }
   };
 
   return (
-    <section className="relative mt-4" aria-roledescription="carousel" aria-label="Highlights">
+    <section className={`relative ${className}`} aria-roledescription="carousel" aria-label="Highlights">
       <div
         ref={track}
         onScroll={onScroll}
+        onPointerDown={() => setPaused(true)}
+        onTouchStart={() => setPaused(true)}
         className="flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {banners.map((banner, i) => (

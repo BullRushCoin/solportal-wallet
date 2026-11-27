@@ -14,6 +14,7 @@ import { BalanceCard } from "@/components/vela/balance-card";
 import type { PortfolioRange } from "@/lib/vela/portfolio-history";
 import { describeChange, usePortfolioHistory } from "@/lib/vela/use-portfolio-history";
 import { IncineratorCard } from "@/components/vela/incinerator-card";
+import { HomeBanners } from "@/components/vela/explore-banners";
 
 export function HomeView() {
   const watchAddress = useVela((state) => state.watchAddress);
@@ -90,7 +91,9 @@ function SandboxHome() {
         <Quick icon={<CreditCard className="size-4" />} label="Buy Crypto" onClick={() => setMore("buy")} />
       </div>
 
-      <div className="mt-8 flex items-end justify-between">
+      <HomeBanners />
+
+      <div className="mt-6 flex items-end justify-between">
         <SectionLabel>Assets</SectionLabel>
         <button className="text-xs text-muted" onClick={() => openSwap()}>
           Swap
@@ -142,7 +145,9 @@ function SandboxHome() {
         )}
       </ul>
 
-      <IncineratorCard holdings={holdings} />
+      <div id="incinerator" className="scroll-mt-4">
+        <IncineratorCard holdings={holdings} />
+      </div>
     </div>
   );
 }
