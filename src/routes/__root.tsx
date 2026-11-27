@@ -20,6 +20,9 @@ export const Route = createRootRoute({
           "SolPortal is a non-custodial Solana wallet with Jupiter swaps, an Explore directory, and an in-app dApp signer.",
       },
       { name: "theme-color", content: "#09090b" },
+      { name: "apple-mobile-web-app-title", content: "SolPortal" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "mobile-web-app-capable", content: "yes" },
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
@@ -46,6 +49,17 @@ function CrashReporter() {
   return null;
 }
 
+/** Installable app: register the service worker on the real site only (not in embedded previews). */
+function ServiceWorker() {
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    if (window.self !== window.top) return;
+    if (!/^https:/.test(window.location.protocol)) return;
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }, []);
+  return null;
+}
+
 function RootDocument() {
   return (
     <html lang="en" suppressHydrationWarning>
@@ -55,6 +69,7 @@ function RootDocument() {
       <body>
         <PreviewHostBridge />
         <CrashReporter />
+        <ServiceWorker />
         <AuthProvider>
           <Outlet />
         </AuthProvider>
