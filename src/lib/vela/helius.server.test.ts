@@ -51,10 +51,10 @@ describe("helius.server", () => {
       fetches += 1;
       const url = String(input);
       calls.push(`${init?.method ?? "GET"} ${redact(url)}`);
-      if (url.includes("lite-api.jup.ag/price")) {
+      if (url.includes("api.jup.ag/price")) {
         return jsonResponse({ [WSOL]: { usdPrice: 161.25, priceChange24h: 2.4 }, [USDC]: { usdPrice: 1, priceChange24h: 0 } });
       }
-      if (url.includes("lite-api.jup.ag/tokens/v1/token/")) {
+      if (url.includes("api.jup.ag/tokens/v1/token/")) {
         const mint = url.split("/").pop() ?? "";
         return jsonResponse({ logoURI: `https://example.com/${mint}.png` });
       }
@@ -97,7 +97,7 @@ describe("helius.server", () => {
     process.env.HELIUS_API_KEY = "test-helius-key";
     globalThis.fetch = async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
-      if (url.includes("lite-api.jup.ag/price")) {
+      if (url.includes("api.jup.ag/price")) {
         return jsonResponse({ [WSOL]: { usdPrice: 160, priceChange24h: 1.1 }, [USDC]: { usdPrice: 1, priceChange24h: -0.1 } });
       }
       if (url.includes("mainnet.helius-rpc.com")) {

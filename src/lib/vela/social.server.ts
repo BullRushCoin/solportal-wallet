@@ -1,3 +1,4 @@
+import { jupHeaders, JUP_BASE } from "@/lib/vela/jupiter-api.server";
 import { rssItemImage, type Headline, type NewsSnapshot, type TokenLinks, type TrendingCoin } from "@/lib/vela/social";
 
 const NEWS_TTL_MS = 5 * 60_000;
@@ -66,7 +67,7 @@ async function loadTrending(): Promise<TrendingCoin[]> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8_000);
   try {
-    const res = await fetch("https://lite-api.jup.ag/tokens/v2/toptrending/1h?limit=40", { signal: controller.signal });
+    const res = await fetch(`${JUP_BASE}/tokens/v2/toptrending/1h?limit=40`, { signal: controller.signal, headers: jupHeaders() });
     if (!res.ok) return [];
     const rows = (await res.json()) as Array<Record<string, unknown>>;
     return rows

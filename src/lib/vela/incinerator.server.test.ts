@@ -24,7 +24,7 @@ describe("incinerator.server", () => {
   it("quotes swappable dust and burns tokens with no route", async () => {
     globalThis.fetch = async (input: string | URL | Request) => {
       const url = String(input);
-      if (url.includes("lite-api.jup.ag/price")) {
+      if (url.includes("api.jup.ag/price")) {
         return jsonResponse({
           EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm: { usdPrice: 0.12 },
         });

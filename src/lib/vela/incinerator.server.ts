@@ -1,3 +1,4 @@
+import { headersFor } from "@/lib/vela/jupiter-api.server";
 import { fetchJupiterPrices, heliusApiKey, heliusRpc, loadWatchedWallet } from "@/lib/vela/helius.server";
 import { httpImageUrl } from "@/lib/vela/helius-parse";
 import {
@@ -27,7 +28,7 @@ async function getJson(url: string, timeoutMs = 8_000): Promise<unknown> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(url, { signal: controller.signal });
+    const res = await fetch(url, { signal: controller.signal, headers: headersFor(url) });
     if (!res.ok) throw new Error(`http ${res.status}`);
     return await res.json();
   } finally {

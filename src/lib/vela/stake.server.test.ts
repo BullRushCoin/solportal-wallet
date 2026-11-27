@@ -69,7 +69,7 @@ describe("stake.server", () => {
       if (url.includes("stakewiz.com/epoch_info")) {
         return jsonResponse({ epoch: 1095, duration_seconds: 100, elapsed_seconds: 40, remaining_seconds: 60 });
       }
-      if (url.includes("lite-api.jup.ag") || url.includes("mainnet.helius-rpc.com")) {
+      if (url.includes("api.jup.ag") || url.includes("mainnet.helius-rpc.com")) {
         return jsonResponse({});
       }
       return jsonResponse({}, 404);

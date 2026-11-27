@@ -1,3 +1,4 @@
+import { jupHeaders } from "@/lib/vela/jupiter-api.server";
 import { createFileRoute } from "@tanstack/react-router";
 import { buildQuoteUrl, JUPITER_LITE_API } from "@/lib/vela/jupiter";
 import { parseQuoteParams, quoteCacheKey, trimJupiterQuote } from "@/lib/vela/swap-quote";
@@ -24,7 +25,7 @@ export const Route = createFileRoute("/api/quote")({
         let body: unknown;
         try {
           const res = await fetch(buildQuoteUrl(parsed.value, JUPITER_LITE_API), {
-            headers: { accept: "application/json" },
+            headers: jupHeaders({ accept: "application/json" }),
             signal: AbortSignal.timeout(8_000),
           });
           const json = (await res.json().catch(() => null)) as Record<string, unknown> | null;

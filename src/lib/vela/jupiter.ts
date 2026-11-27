@@ -13,10 +13,10 @@ export const DEFAULT_SLIPPAGE_BPS = 50;
 export const JUPITER_API = "https://api.jup.ag/swap/v1";
 
 /**
- * Keyless public host, fine for prototypes. Same query shape.
- * Do not put a production API key in the client bundle.
+ * lite-api.jup.ag is retired; keyless requests now go to api.jup.ag (about 0.5 RPS per IP).
+ * Kept as an alias so older imports keep working.
  */
-export const JUPITER_LITE_API = "https://lite-api.jup.ag/swap/v1";
+export const JUPITER_LITE_API = JUPITER_API;
 
 /**
  * Fee accounts are the associated token accounts of `feeWalletAddress()`.

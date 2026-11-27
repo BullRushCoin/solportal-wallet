@@ -1,3 +1,4 @@
+import { headersFor, JUP_BASE } from "@/lib/vela/jupiter-api.server";
 import { TOKENS } from "@/lib/vela/tokens";
 import {
   asArray,
@@ -19,10 +20,9 @@ import { fallbackMarketSnapshot, type MarketSnapshot, type MarketTokenQuote } fr
 const MARKET_TTL_MS = 45_000;
 const WALLET_TTL_MS = 30_000;
 const HELIUS_RPC = "https://mainnet.helius-rpc.com";
-const JUPITER_PRICE_V3 = "https://lite-api.jup.ag/price/v3";
-const JUPITER_PRICE_V2 = "https://lite-api.jup.ag/price/v2";
-const JUPITER_TOKEN_V1 = "https://lite-api.jup.ag/tokens/v1/token";
-const JUPITER_TOKEN_SEARCH_V2 = "https://lite-api.jup.ag/tokens/v2/search";
+const JUPITER_PRICE_V3 = `${JUP_BASE}/price/v3`;
+const JUPITER_PRICE_V2 = `${JUP_BASE}/price/v2`;
+const JUPITER_TOKEN_SEARCH_V2 = `${JUP_BASE}/tokens/v2/search`;
 
 type CacheEntry<T> = { at: number; value: T };
 
@@ -59,7 +59,7 @@ async function getJson(url: string, timeoutMs = 8_000): Promise<unknown> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(url, { signal: controller.signal });
+    const res = await fetch(url, { signal: controller.signal, headers: headersFor(url) });
     if (!res.ok) throw new Error(`http ${res.status}`);
     return await res.json();
   } finally {
@@ -97,7 +97,10 @@ export async function fetchJupiterPrices(mints: string[]): Promise<JupiterPriceQ
 
 async function fetchJupiterLogo(mint: string): Promise<string | null> {
   try {
-    return imageFromTokenInfo(await getJson(`${JUPITER_TOKEN_V1}/${encodeURIComponent(mint)}`));
+    const rows = await getJson(`${JUPITER_TOKEN_SEARCH_V2}?query=${encodeURIComponent(mint)}`);
+    const row = (Array.isArray(rows) ? rows : []).find((item) => asRecord(item)?.id === mint);
+    const icon = asString(asRecord(row)?.icon);
+    return icon ?? imageFromTokenInfo(row);
   } catch {
     return null;
   }

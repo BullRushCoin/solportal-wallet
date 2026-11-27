@@ -1,10 +1,11 @@
+import { jupHeaders, JUP_BASE } from "@/lib/vela/jupiter-api.server";
 import { createFileRoute } from "@tanstack/react-router";
 import { isSolanaAddress } from "@/lib/vela/address";
 import { parseMintList } from "@/lib/vela/market-tickers";
 import { mapJupiterSearch, SEARCH_LIMIT, type PickerToken } from "@/lib/vela/token-picker";
 
 const TTL_MS = 60_000;
-const SEARCH_URL = "https://lite-api.jup.ag/tokens/v2/search";
+const SEARCH_URL = `${JUP_BASE}/tokens/v2/search`;
 const cache = new Map<string, { at: number; tokens: PickerToken[] }>();
 
 /**
@@ -28,7 +29,7 @@ export const Route = createFileRoute("/api/token-search")({
         }
         try {
           const res = await fetch(`${SEARCH_URL}?query=${encodeURIComponent(q)}`, {
-            headers: { accept: "application/json" },
+            headers: jupHeaders({ accept: "application/json" }),
             signal: AbortSignal.timeout(8_000),
           });
           if (!res.ok) throw new Error(String(res.status));
