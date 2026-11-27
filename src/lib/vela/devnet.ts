@@ -42,11 +42,28 @@ export const DEVNET_ART = [
 
 export type DevnetNft = { mint: string; name: string; image: string | null };
 
+/** iOS Safari drops the odd request ("Load failed"). Retry reads; never resend a transaction blindly. */
+const retryingFetch: typeof fetch = async (input, init) => {
+  const body = typeof init?.body === "string" ? init.body : "";
+  const tries = body.includes('"sendTransaction"') ? 1 : 3;
+  let lastError: unknown;
+  for (let attempt = 0; attempt < tries; attempt++) {
+    try {
+      return await fetch(input, init);
+    } catch (error) {
+      lastError = error;
+      await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+    }
+  }
+  throw lastError;
+};
+
 let connection: Connection | null = null;
 function conn(): Connection {
   connection ??= new Connection(`${window.location.origin}/api/devnet`, {
     commitment: "confirmed",
     disableRetryOnRateLimit: true,
+    fetch: retryingFetch,
   });
   return connection;
 }

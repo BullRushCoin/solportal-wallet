@@ -39,7 +39,9 @@ function errText(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   if (/cooldown/i.test(message)) return "You already got free SOL this hour. Try faucet.solana.com for more.";
   if (/faucet|airdrop|429/i.test(message)) return "The in-app faucet is unavailable right now. Use faucet.solana.com with your copied address.";
-  if (/insufficient|prior credit|0x1\b|lamports/i.test(message)) return "Not enough devnet SOL. Tap Free SOL first.";
+  if (/load failed|failed to fetch|networkerror|network request failed/i.test(message))
+    return "Connection dropped. Pull to refresh and try again; nothing was sent.";
+  if (/insufficient|prior credit|0x1\b|lamports/i.test(message)) return "Not enough devnet SOL. Tap Get SOL first.";
   return message.length > 160 ? `${message.slice(0, 160)}…` : message;
 }
 

@@ -1,6 +1,21 @@
 import { lazy, Suspense, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 
-const DevnetPage = lazy(() => import("@/components/vela/devnet-page"));
+// After a deploy, an open tab can ask for a chunk that no longer exists ("Load failed" on iOS). Reload once to pick up the new build.
+const DevnetPage = lazy(() =>
+  import("@/components/vela/devnet-page")
+    .then((mod) => {
+      sessionStorage.removeItem("sp-chunk-reload");
+      return mod;
+    })
+    .catch((error: unknown) => {
+    if (typeof window !== "undefined" && !sessionStorage.getItem("sp-chunk-reload")) {
+      sessionStorage.setItem("sp-chunk-reload", "1");
+      window.location.reload();
+      return new Promise<never>(() => {});
+    }
+    throw error;
+  }),
+);
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   ArrowDownLeft,
