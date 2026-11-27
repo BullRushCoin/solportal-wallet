@@ -11,18 +11,19 @@ import { WatchStar } from "@/components/vela/watch-star";
 // Movers ticker draws from the majors, the top-coins list and xStocks, deduped.
 const MOVER_COINS = [...TICKER_COINS, ...TOP_COINS.filter((top) => !TICKER_COINS.some((coin) => coin.mint === top.mint))];
 const TICKER_MINTS = MOVER_COINS.map((coin) => coin.mint);
-const TOP_MINTS = TOP_COINS.map((coin) => coin.mint);
 
 export function MarketView() {
+  // One shared price poll for the ticker and Top coins (TOP_MINTS is a subset of TICKER_MINTS).
+  const prices = useLivePrices(TICKER_MINTS, 30_000);
   return (
     <div className="pt-5 pb-8">
       <div className="px-5">
         <h1 className="text-3xl font-semibold tracking-tight">Market</h1>
       </div>
-      <Ticker />
+      <Ticker prices={prices} />
       <WatchStrip />
       <div className="px-5">
-        <TopCoins />
+        <TopCoins prices={prices} />
         <Memecoins />
       </div>
     </div>
@@ -51,8 +52,7 @@ function Change({ pct, className }: { pct: number | null | undefined; className?
 
 // ---------- Ticker ----------
 
-function Ticker() {
-  const prices = useLivePrices(TICKER_MINTS, 30_000);
+function Ticker({ prices }: { prices: Record<string, LiveQuote> }) {
   const setSheet = useVela((state) => state.setSheet);
   // Top movers: biggest 24h swings first, either direction.
   const ordered = [...MOVER_COINS].sort(
@@ -117,8 +117,7 @@ function Sparkline({ points, up }: { points: number[] | undefined; up: boolean }
   );
 }
 
-function TopCoins() {
-  const prices = useLivePrices(TOP_MINTS, 30_000);
+function TopCoins({ prices }: { prices: Record<string, LiveQuote> }) {
   const [expanded, setExpanded] = useState(false);
   const [sparks, setSparks] = useState<Record<string, number[]>>({});
   useEffect(() => {

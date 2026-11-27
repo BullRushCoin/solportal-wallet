@@ -38,12 +38,18 @@ export function useLivePrices(mints: string[], ms = 30_000): Record<string, Live
   useVisiblePoll(
     () => {
       if (!key) return;
-      void fetch(`/api/prices?mints=${encodeURIComponent(key)}`, { cache: "no-store" })
-        .then((res) => (res.ok ? (res.json() as Promise<{ prices?: Record<string, LiveQuote> }>) : null))
-        .then((body) => {
-          if (body?.prices) setPrices((prev) => ({ ...prev, ...body.prices }));
-        })
-        .catch(() => {});
+      const load = (retry: boolean) =>
+        void fetch(`/api/prices?mints=${encodeURIComponent(key)}`, { cache: "no-store" })
+          .then((res) => (res.ok ? (res.json() as Promise<{ prices?: Record<string, LiveQuote> }>) : null))
+          .then((body) => {
+            const got = body?.prices && Object.values(body.prices).some((quote) => quote.priceUsd !== null);
+            if (got) setPrices((prev) => ({ ...prev, ...body!.prices }));
+            else if (retry) window.setTimeout(() => load(false), 4_000);
+          })
+          .catch(() => {
+            if (retry) window.setTimeout(() => load(false), 4_000);
+          });
+      load(true);
     },
     ms,
     Boolean(key),
