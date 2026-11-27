@@ -16,6 +16,7 @@ import {
 import {
   AuthorityType,
   MINT_SIZE,
+  TOKEN_2022_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountIdempotentInstruction,
   createBurnCheckedInstruction,
@@ -30,6 +31,8 @@ import {
 if (typeof globalThis !== "undefined" && !(globalThis as { Buffer?: unknown }).Buffer) {
   (globalThis as { Buffer?: unknown }).Buffer = Buffer;
 }
+
+export const TOKEN_2022_ID = TOKEN_2022_PROGRAM_ID.toBase58();
 
 const KEY_STORE = "solportal-devnet-key-v1";
 const NFT_STORE = "solportal-devnet-nfts-v1";
@@ -261,6 +264,8 @@ export type JunkAccount = {
   /** Unrecognised or known-spam NFT. Devnet has no floor prices, so every NFT shows "No floor". */
   spam: boolean;
   image: string | null;
+  /** Owning token program: classic SPL Token or Token-2022. Burn and close must target it. */
+  programId: string;
 };
 
 const SPAM_NFT_NAMES = ["FREE 500 SOL CLAIM", "Airdrop Voucher (claim now)", "$JUP Bonus Pass", "Mystery Box: visit site"];
@@ -281,20 +286,22 @@ export async function makeJunk(payer: Keypair): Promise<string> {
   const mints = [Keypair.generate(), Keypair.generate(), Keypair.generate()];
   const ixs: TransactionInstruction[] = [];
   mints.forEach((mint, i) => {
-    const ata = getAssociatedTokenAddressSync(mint.publicKey, payer.publicKey);
+    // Most new junk on Solana is Token-2022 (memecoin launchpads), so one dust token uses it.
+    const program = i === 1 ? TOKEN_2022_PROGRAM_ID : TOKEN_PROGRAM_ID;
+    const ata = getAssociatedTokenAddressSync(mint.publicKey, payer.publicKey, false, program);
     ixs.push(
       SystemProgram.createAccount({
         fromPubkey: payer.publicKey,
         newAccountPubkey: mint.publicKey,
         space: MINT_SIZE,
         lamports: mintRent,
-        programId: TOKEN_PROGRAM_ID,
+        programId: program,
       }),
-      createInitializeMint2Instruction(mint.publicKey, 6, payer.publicKey, null),
-      createAssociatedTokenAccountIdempotentInstruction(payer.publicKey, ata, payer.publicKey, mint.publicKey),
+      createInitializeMint2Instruction(mint.publicKey, 6, payer.publicKey, null, program),
+      createAssociatedTokenAccountIdempotentInstruction(payer.publicKey, ata, payer.publicKey, mint.publicKey, program),
     );
     // Third one stays empty: just an account holding rent.
-    if (i < 2) ixs.push(createMintToInstruction(mint.publicKey, ata, payer.publicKey, Math.floor(1_000 + Math.random() * 90_000_000)));
+    if (i < 2) ixs.push(createMintToInstruction(mint.publicKey, ata, payer.publicKey, Math.floor(1_000 + Math.random() * 90_000_000), [], program));
     names[mint.publicKey.toBase58()] = JUNK_NAMES[(used + i) % JUNK_NAMES.length]!;
   });
   await sendIx(payer, ixs, mints);
@@ -327,7 +334,14 @@ export async function makeJunk(payer: Keypair): Promise<string> {
 
 /** Every token account that isn't an NFT: dust and empty accounts, each holding ~0.002 SOL of rent. */
 export async function scanJunk(owner: PublicKey): Promise<JunkAccount[]> {
-  const { value } = await conn().getParsedTokenAccountsByOwner(owner, { programId: TOKEN_PROGRAM_ID });
+  const [classic, t22] = await Promise.all([
+    conn().getParsedTokenAccountsByOwner(owner, { programId: TOKEN_PROGRAM_ID }),
+    conn().getParsedTokenAccountsByOwner(owner, { programId: TOKEN_2022_PROGRAM_ID }),
+  ]);
+  const value = [
+    ...classic.value.map((item) => ({ ...item, program: TOKEN_PROGRAM_ID })),
+    ...t22.value.map((item) => ({ ...item, program: TOKEN_2022_PROGRAM_ID })),
+  ];
   const names = junkNames();
   const mine = savedNames();
   const out: JunkAccount[] = [];
@@ -351,6 +365,7 @@ export async function scanJunk(owner: PublicKey): Promise<JunkAccount[]> {
       uiAmount: amount.uiAmount ?? 0,
       decimals,
       rentLamports: item.account.lamports,
+      programId: item.program.toBase58(),
     });
   }
   return out;
@@ -379,10 +394,11 @@ export async function incinerate(payer: Keypair, items: JunkAccount[], feeBps: n
     for (const item of chunk) {
       const account = new PublicKey(item.account);
       const mint = new PublicKey(item.mint);
+      const program = item.programId === TOKEN_2022_PROGRAM_ID.toBase58() ? TOKEN_2022_PROGRAM_ID : TOKEN_PROGRAM_ID;
       if (item.amountRaw !== "0") {
-        ixs.push(createBurnCheckedInstruction(account, mint, payer.publicKey, BigInt(item.amountRaw), item.decimals));
+        ixs.push(createBurnCheckedInstruction(account, mint, payer.publicKey, BigInt(item.amountRaw), item.decimals, [], program));
       }
-      ixs.push(createCloseAccountInstruction(account, payer.publicKey, payer.publicKey));
+      ixs.push(createCloseAccountInstruction(account, payer.publicKey, payer.publicKey, [], program));
     }
     if (i + BATCH >= items.length && feeLamports > 0) {
       ixs.push(SystemProgram.transfer({ fromPubkey: payer.publicKey, toPubkey: new PublicKey(feeWallet), lamports: feeLamports }));

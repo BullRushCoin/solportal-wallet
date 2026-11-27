@@ -1,8 +1,24 @@
 # SolPortal
 
-Non-custodial Solana wallet. Jupiter-style swaps, an Explore directory, and an in-app signer that stops every transaction before it can leave the phone.
+A Solana wallet with cleanup built in. The **Incinerator** finds dust, dead tokens and spam NFTs, burns them, closes the empty token accounts and hands the locked SOL rent back to you in one tap, with no third-party site to connect.
 
-This repository is a **sandbox**. Balances, quotes, and signatures are simulated in the browser. Nothing is broadcast, and the app does not create a real key. Do not paste a real recovery phrase, and do not send funds to any address it shows.
+Live: https://solportal-wallet.vercel.app (installable PWA, add it to your home screen)
+
+## What's real and what's simulated
+
+**Live on Solana devnet (real keys, real transactions):**
+
+- A real ed25519 keypair generated in the browser, devnet only. Never send mainnet funds to it.
+- Get, send and receive SOL; mint, send and receive NFTs.
+- **The Incinerator:** "Make junk" creates real dust tokens, an empty account and a spam NFT. "Incinerate" sends `burnChecked` and `closeAccount` instructions (classic SPL Token and Token-2022), returns the rent to the wallet and pays a 5% fee on reclaimed rent in the same transaction. Spam NFTs are only burned if you opt in.
+- Code: `src/lib/vela/devnet.ts`, `src/components/vela/devnet-page.tsx`, `src/routes/api/devnet.ts` (RPC proxy with a method allowlist, so the RPC key stays server-side).
+- Example burn: https://solscan.io/tx/Q2UYW9hVPkssDeDr6ftibe6EReTpsFDSoM79jKBU5mretm6AXMZnwqZ8fBeP1fK5dF1KkXzLyY9Cy8sNHGb9XCE?cluster=devnet
+
+**Product sandbox (simulated):** the full wallet UI (swap, stake, activity) runs on simulated balances and signatures. Nothing in it is broadcast. Read-only pieces use real data: Explore (DefiLlama, live DEX pairs), live prices and quotes, and "Watch a wallet", which scans any public mainnet address for dust and empty accounts.
+
+**Not yet built:** swapping dust to SOL on-chain before burning (devnet has no swap liquidity), and mainnet. Mainnet waits on a security audit and a deposit-capped beta.
+
+**Template leftovers:** the project started from an app-builder template. Auth and database packages, migrations, and multiplayer/OG helpers are unused by the wallet.
 
 ## Requirements
 
@@ -48,4 +64,4 @@ The sandbox UI runs without API keys and keeps wallet state in the browser (`loc
 
 ## What this is not
 
-Not a production wallet, not custody, and not financial advice. A real build would keep keys in the device keystore, call Jupiter and an RPC for real quotes, and show a simulated-vs-live difference on every signature screen before anything is signed.
+Not a production wallet yet, and not financial advice. The devnet key lives in browser localStorage, which is fine for play money only. Mainnet will use a proper keystore after a security review.

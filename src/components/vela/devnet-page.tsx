@@ -23,6 +23,7 @@ import {
   sendSol,
   type DevnetNft,
   type DevnetTx,
+  TOKEN_2022_ID,
 } from "@/lib/vela/devnet";
 import { formatAmt, shortAddr } from "@/lib/vela/format";
 import { incineratorFeeBps } from "@/lib/vela/incinerator";
@@ -447,7 +448,12 @@ function IncineratorSection({
                 <ul className="mt-1 divide-y divide-line">
                   {tokens.map((item) => (
                     <li key={item.account} className="flex items-center justify-between py-2 text-sm">
-                      <span className="font-medium">{item.symbol}</span>
+                      <span className="font-medium">
+                        {item.symbol}
+                        {item.programId === TOKEN_2022_ID ? (
+                          <span className="ml-1.5 rounded bg-line px-1 py-0.5 text-[10px] font-medium text-muted">Token-2022</span>
+                        ) : null}
+                      </span>
                       <span className="text-xs text-muted tabular-nums">
                         {item.amountRaw === "0" ? "Empty account" : `${formatAmt(item.uiAmount, 2)} dust`} · {formatAmt(item.rentLamports / 1e9, 5)} SOL
                       </span>
