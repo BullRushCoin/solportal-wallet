@@ -125,6 +125,9 @@ export function SwapView() {
   const outBalance = holdings[outTok.symbol] ?? 0;
   const viewOnly = Boolean(watchAddress);
   const shown = quote && !pending ? quote : null;
+  const freeTrades = useVela((state) => state.rewards?.freeTrades ?? 0);
+  const freeTrade = freeTrades > 0;
+  const feeRefundOut = shown && freeTrade && shown.feeSymbol === outTok.symbol ? shown.feeUi : 0;
   const tooMuch = amountIn > balance + 1e-8;
   const blocked = viewOnly || !wallet || !shown || tooMuch;
   const impact = shown ? impactLevel(shown.impactPct) : "ok";
@@ -144,21 +147,28 @@ export function SwapView() {
       input: inTok.symbol,
       output: outTok.symbol,
       amountIn,
-      amountOut: shown.outUi,
-      feeUsd: shown.feeUsd,
+      amountOut: shown.outUi + feeRefundOut,
+      feeUsd: freeTrade ? 0 : shown.feeUsd,
+      freeTrade: freeTrade || undefined,
       networkFeeSol: priorityFeeSol(priority),
       outputToken: isNew ? { ...outTok, priceUsd: outPrice, verified: !outUnverified } : undefined,
       effects: [
         { symbol: inTok.symbol, delta: -amountIn, usd: -inUsd },
-        { symbol: outTok.symbol, delta: shown.outUi, usd: outUsd },
+        { symbol: outTok.symbol, delta: shown.outUi + feeRefundOut, usd: (shown.outUi + feeRefundOut) * outPrice },
       ],
       authorities: [],
       warnings: [
-        {
-          level: "info",
-          title: `${PLATFORM_FEE_BPS} bps platform fee`,
-          detail: `${formatAmt(shown.feeUi, 6)} ${shown.feeSymbol} would go to the SolPortal cold wallet. This sandbox does not collect it.`,
-        },
+        freeTrade
+          ? {
+              level: "info",
+              title: "Free trade applied",
+              detail: `Daily reward: the ${PLATFORM_FEE_BPS} bps platform fee is waived. ${freeTrades - 1} free trade${freeTrades - 1 === 1 ? "" : "s"} left after this.`,
+            }
+          : {
+              level: "info",
+              title: `${PLATFORM_FEE_BPS} bps platform fee`,
+              detail: `${formatAmt(shown.feeUi, 6)} ${shown.feeSymbol} would go to the SolPortal cold wallet. This sandbox does not collect it.`,
+            },
       ],
     };
     if (shown.source === "estimated") {
@@ -318,7 +328,11 @@ export function SwapView() {
           />
           <Row k="Min after slippage" v={`${formatAmt(shown.minOutUi, 6)} ${outTok.symbol}`} />
           <Row k="Slippage" v={slippageLabel(slippageBps)} />
-          <Row k="Platform fee" v={`${PLATFORM_FEE_BPS} bps · ${formatUsd(shown.feeUsd)}`} />
+          <Row
+            k="Platform fee"
+            v={freeTrade ? `Free trade · ${freeTrades} left` : `${PLATFORM_FEE_BPS} bps · ${formatUsd(shown.feeUsd)}`}
+            tone={freeTrade ? "text-accent" : undefined}
+          />
           <Row k="Fee mint" v={shown.feeSymbol} />
           <Row k="Fee recipient" v="SolPortal cold wallet" />
         </dl>

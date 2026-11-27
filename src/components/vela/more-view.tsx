@@ -40,6 +40,7 @@ import { Collectibles } from "@/components/vela/home";
 import { StakeView } from "@/components/vela/stake-view";
 import { SupportChat } from "@/components/vela/support-chat";
 import { WatchAddressForm } from "@/components/vela/watch-address";
+import { RewardsView } from "@/components/vela/rewards-page";
 import type { NftHolding } from "@/lib/vela/helius-parse";
 
 const PARTNERS = ["MoonPay", "Transak", "Stripe"] as const;
@@ -64,6 +65,7 @@ export function MoreView() {
   if (more === "blueprint") return <BlueprintPage />;
   if (more === "support") return <SupportPage />;
   if (more === "revenue") return <RevenuePage />;
+  if (more === "rewards") return <RewardsPage />;
   return <MoreRoot />;
 }
 
@@ -365,6 +367,14 @@ function BlueprintPage() {
       <PageBar title="Flight manual" />
       <Blueprint embedded />
     </div>
+  );
+}
+
+function RewardsPage() {
+  return (
+    <SubPage title="Daily rewards">
+      <RewardsView />
+    </SubPage>
   );
 }
 

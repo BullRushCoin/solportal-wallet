@@ -8,6 +8,7 @@ import { safeHttpUrl } from "@/lib/vela/open-url";
 import type { TxIntent } from "@/lib/vela/provider";
 import type { NativeStakePosition } from "@/lib/vela/stake";
 import { preferSwapOutput } from "@/lib/vela/incinerator";
+import { claimReward, EMPTY_REWARDS, type Rewards } from "@/lib/vela/rewards";
 import {
   holdingKeyFor,
   setCustomTokens,
@@ -71,7 +72,8 @@ export type MoreRoute =
   | "collectibles"
   | "watch"
   | "support"
-  | "revenue";
+  | "revenue"
+  | "rewards";
 export type Priority = "low" | "fast" | "protect";
 
 export type BrowserState = {
@@ -170,6 +172,8 @@ type Persisted = {
   customTokens: CustomToken[];
   /** Balance-card skin per account id (GLOBAL_SKIN_KEY when no account). */
   cardSkins: Record<string, CardSkinId>;
+  /** Daily check-in streak and unused free trades. */
+  rewards: Rewards;
 };
 
 type Ephemeral = {
@@ -217,6 +221,8 @@ type Actions = {
   /** Refresh USD prices of runtime tokens from /api/prices. */
   refreshCustomPrices: () => Promise<void>;
   setCardSkin: (skin: CardSkinId) => void;
+  /** Claim today's check-in reward; returns the free trades gained, or 0 when already claimed. */
+  claimDaily: () => number;
 };
 
 /** Register a runtime token; returns its holdings key (reuses an existing key for the same mint). */
@@ -344,6 +350,7 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
       watchlist: [],
       customTokens: [],
       cardSkins: {},
+      rewards: { ...EMPTY_REWARDS },
       hydrated: false,
       tab: "home",
       more: "root",
@@ -355,6 +362,15 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
       swapPrefill: null,
 
       setHydrated: (hydrated) => set({ hydrated }),
+      claimDaily: () => {
+        const result = claimReward(get().rewards ?? EMPTY_REWARDS);
+        if (!result) return 0;
+        set({
+          rewards: result.next,
+          toast: `Day ${result.next.streak} claimed: +${result.gained} free trade${result.gained === 1 ? "" : "s"}`,
+        });
+        return result.gained;
+      },
       setCardSkin: (skin) =>
         set((state) => ({
           // Remember per wallet, and as the global fallback for wallets that never picked one.
@@ -602,11 +618,16 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
           deltas[output] = (deltas[output] ?? 0) + intent.amountOut;
           deltas.SOL = (deltas.SOL ?? 0) - intent.networkFeeSol;
           holdings = applyDeltas(holdings, deltas);
-          revenue = { ...revenue, swapFeesUsd: revenue.swapFeesUsd + intent.feeUsd };
+          if (intent.freeTrade) {
+            const rewards = get().rewards ?? EMPTY_REWARDS;
+            set({ rewards: { ...rewards, freeTrades: Math.max(0, rewards.freeTrades - 1) } });
+          } else {
+            revenue = { ...revenue, swapFeesUsd: revenue.swapFeesUsd + intent.feeUsd };
+          }
           activity = pushActivity(activity, {
             kind: "swap",
             title: `Swapped ${intent.input} → ${output}`,
-            detail: `Platform fee ${intent.feeUsd.toFixed(2)} USD to treasury`,
+            detail: intent.freeTrade ? "Free trade: platform fee waived" : `Platform fee ${intent.feeUsd.toFixed(2)} USD to treasury`,
             usd: -intent.feeUsd,
           });
         } else if (intent.kind === "send") {
@@ -834,6 +855,7 @@ export const useVela = create<Persisted & Ephemeral & Actions>()(
         watchlist: state.watchlist,
         customTokens: state.customTokens,
         cardSkins: state.cardSkins,
+        rewards: state.rewards,
       }),
       merge: (persisted, current) => {
         const saved = (persisted ?? {}) as Partial<Persisted>;

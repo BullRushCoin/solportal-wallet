@@ -45,6 +45,8 @@ export type TxIntent = IntentBase &
         amountIn: number;
         amountOut: number;
         feeUsd: number;
+        /** A daily-reward free trade: the platform fee is waived and one free trade is used. */
+        freeTrade?: boolean;
         /** Set when the output is a token the sandbox has not seen before; registered on approve. */
         outputToken?: CustomToken;
       }
